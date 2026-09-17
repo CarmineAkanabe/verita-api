@@ -120,5 +120,55 @@ that depend on a runtime-created `Case` and can't go through factories).
   enforced by the schema — it's a Phase 2 application-validation job (Form
   Request / Policy), not a DB-level rule.
 
-## Phase 2 - Authenticate & Account Foundation
- (In progress)
+## Phase 2 — Authenticate & Account Foundation ✅ Complete
+
+**Delivered:**
+- Login/logout via JWT (`api` guard): `LoginRequest` → `LoginData` DTO →
+  `AuthService::login()/logout()` → `AuthController`. `login` rate limiter
+  (defined in Phase 0) attached to `POST /api/v1/auth/login`.
+- Update Account Profile: `UpdateProfileRequest` → `UpdateProfileData` DTO →
+  `AccountService::updateProfile()` → `AccountController`. Supports partial
+  updates (`sometimes` rules) to name/email/password/`profilePicture`.
+- View Account Dashboard: `AccountService::dashboard()` branches on
+  `Role` via `match` — Department Head payload (`department`,
+  `assignedCaseCount`) differs from Manager payload (`departmentCount`,
+  `userCount`).
+- `UserResource` (camelCase API shape) used across both auth and account
+  responses.
+- Pest coverage: `AuthTest` (login happy path, wrong password → 401, missing
+  fields → 422), `AccountTest` (profile update happy path, dashboard shape
+  per role — Department Head and Manager separately).
+- Middleware/Policy split decided and documented: Phase 2's actions are all
+  self-resource (a user only ever acts on their own account), so no Policy
+  is needed here. Confirmed Phase 3/4's "Manager-only" restrictions will use
+  a role-checking Middleware, not a Policy — Policies are reserved for
+  genuine instance-level authorization, first needed in Phase 8's
+  `CasePolicy`.
+
+**Deviations, both intentional:**
+- **Profile picture** stores to the `public` disk directly
+  (`Storage::disk('public')->store('avatars', ...)`) — a simpler, separate
+  path from Phase 5's case-scoped evidence storage. Not the same mechanism,
+  deliberately.
+- **Password hashing** relies entirely on the `'hashed'` cast already set on
+  `User` in Phase 1 — `AccountService` just assigns the plain string, no
+  manual `Hash::make()` call.
+
+**Gotchas hit, for the record:**
+- **`.env.testing` was actually missing**, despite Phase 0's PROGRESS.md
+  entry claiming Pest was installed and ready. Created now: separate
+  Postgres DB (`verita_testing`), `MAIL_MAILER=array`,
+  `QUEUE_CONNECTION=sync`, `CACHE_STORE=redis` on `REDIS_CACHE_DB=1`
+  (distinct from dev's `0`), fresh `APP_KEY` and `JWT_SECRET` generated via
+  `--env=testing`. Logged here rather than editing the Phase 0 write-up
+  after the fact.
+- First draft of `AuthTest` hit routes at `/v1/auth/...` and got 404s —
+  `routes/api.php` already carries an automatic `api/` prefix from Laravel's
+  routing bootstrap, and the `Route::prefix('v1')` group adds `v1/` on top
+  of that, so the real path is `/api/v1/auth/...`. Fixed.
+
+**Decision logged this phase for later use (Phase 6, not built yet):**
+- `spatie/laravel-data` will be used for Phase 6's `AiCaseAnalysisData` DTO
+  (hydrating Gemini's JSON response) — the one deliberate exception to the
+  plain-readonly-DTO default from Phase 0's Global Conventions. Not
+  installed yet; `composer require` happens when Phase 6 starts.
