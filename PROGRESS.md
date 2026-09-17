@@ -72,6 +72,53 @@ that depend on a runtime-created `Case` and can't go through factories).
 
 ---
 
-## Phase 1 — Models, Migrations, Seeding
+## Phase 1 — Models, Migrations, Seeding ✅ Complete
 
-*(not started)*
+**Delivered:**
+- 10 PHP backed enums (`app/Enums/`): `Role`, `PresenceStatus`, `CaseCategory`,
+  `CaseStatus`, `SenderType`, `NotificationChannel`, `NotificationStatus`,
+  `AuditActorType`, `AuditAction`, `EvidenceFileType`. Backed values match the
+  master spec's exact vocabulary (`FRAUD`, `AWAITING_REVIEW`, etc.) so DB rows,
+  API JSON, and spec text stay in sync.
+- 7 migrations: `departments`, `users`, `case_records`, `evidences`, `messages`,
+  `notifications`, `audit_logs`. All UUID PKs, generated at the model layer via
+  Laravel's built-in `HasUuids` trait — no DB-level UUID default, no dependency
+  on `pgcrypto`/`uuid-ossp`.
+- 7 models + `User`, all relations per master spec §6.2 wired
+  (`Department`, `User`, `CaseRecord`, `Evidence`, `Message`, `Notification`,
+  `AuditLog`).
+- Factories for all 7 models (`UserFactory` has `manager()`/`departmentHead()`
+  states).
+- `DatabaseSeeder`: 3 departments, 2 department heads each, 1 manager, 1 demo
+  case (`AWAITING_REVIEW`) with evidence/messages/audit log attached.
+
+**Deviations from the plan doc / master spec, both forced:**
+- **`Case` → `CaseRecord` (class), table `case_records`.** `case` is a PHP
+  reserved word (`switch`/`enum` syntax) — `class Case` is a parse error, not
+  a style choice. `InvestigationCase` was rejected in an earlier pass and the
+  master spec explicitly forbids reintroducing it, so `CaseRecord` was picked
+  instead. Table name follows Eloquent's default convention from the class
+  name (`case_records`) — no `$table` override needed. Every route, URL, and
+  UI-facing string still says "Case"; this is a PHP-identifier-only deviation.
+- **`Notification.status`** implemented as an enum (`UNREAD`/`READ`) rather
+  than the master spec's undefined `status` attribute or a boolean
+  `read_at` — the spec never enumerated its values, this was a session
+  decision.
+- **`AuditLog.timestamp` (spec name) → column `logged_at`.** Same attribute,
+  renamed at the schema level only — `timestamp` is an awkward column/query
+  identifier in Eloquent.
+- **`evidences`, `messages`, `notifications`, `audit_logs` have no
+  `created_at`/`updated_at`** — `public $timestamps = false;` on those 4
+  models. They're append-only records with their own spec-named instant
+  (`uploaded_at`, `sent_at`, `logged_at`); a redundant `updated_at` would be
+  noise. `departments`, `users`, `case_records` keep standard `timestamps()`
+  since those rows do mutate.
+
+**Flagged, not yet actioned:**
+- `users.department_id` is nullable at the DB level (Managers have none), even
+  though a Department Head must have one per the spec. That constraint isn't
+  enforced by the schema — it's a Phase 2 application-validation job (Form
+  Request / Policy), not a DB-level rule.
+
+## Phase 2 - Authenticate & Account Foundation
+ (In progress)

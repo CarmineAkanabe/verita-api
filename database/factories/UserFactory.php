@@ -2,10 +2,13 @@
 
 namespace Database\Factories;
 
+use App\Enums\PresenceStatus;
+use App\Enums\Role;
+use App\Models\Department;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
+// use Illuminate\Support\Facades\Hash;
+// use Illuminate\Support\Str;
 
 /**
  * @extends Factory<User>
@@ -15,7 +18,7 @@ class UserFactory extends Factory
     /**
      * The current password being used by the factory.
      */
-    protected static ?string $password;
+    protected $model = User::class;
 
     /**
      * Define the model's default state.
@@ -25,21 +28,24 @@ class UserFactory extends Factory
     public function definition(): array
     {
         return [
-            'name' => fake()->name(),
+            'first_name' => fake()->firstName(),
+            'last_name' => fake()->lastName(),
             'email' => fake()->unique()->safeEmail(),
-            'email_verified_at' => now(),
-            'password' => static::$password ??= Hash::make('password'),
-            'remember_token' => Str::random(10),
+            'password' => bcrypt('password'),
+            'role' => Role::DEPARTMENT_HEAD,
+            'department_id' => Department::factory(),
+            'staff_id' => null,
+            'profile_picture' => null,
+            'presence_status' => PresenceStatus::OFFLINE,
         ];
     }
 
-    /**
-     * Indicate that the model's email address should be unverified.
-     */
-    public function unverified(): static
+    public function manager(): static
     {
-        return $this->state(fn (array $attributes) => [
-            'email_verified_at' => null,
+        return $this->state(fn() => [
+            'role' => Role::MANAGER,
+            'department_id' => null,
+            'staff_id' => 'STF-' . fake()->unique()->numerify('####'),
         ]);
     }
 }
