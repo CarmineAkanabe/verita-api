@@ -172,3 +172,47 @@ that depend on a runtime-created `Case` and can't go through factories).
   (hydrating Gemini's JSON response) — the one deliberate exception to the
   plain-readonly-DTO default from Phase 0's Global Conventions. Not
   installed yet; `composer require` happens when Phase 6 starts.
+
+## Phase 3 — Manage Departments ✅ Complete
+
+**Delivered:**
+- `EnsureRole` middleware (aliased `role` in `bootstrap/app.php`), guarding
+  role-restricted routes — checks `$user->role instanceof Role` before
+  matching against the route's allowed roles, `abort(403, ...)` on failure.
+- Create/Update/Delete Department, all Manager-only:
+  `StoreDepartmentRequest`/`UpdateDepartmentRequest` → `DepartmentData` DTO →
+  `DepartmentService` → `DepartmentController`.
+- **Added beyond the plan doc's literal scope:** `GET /api/v1/departments`
+  (list). "Manage Departments" with no way to see existing ones isn't
+  really usable, and Phase 4's Department Head creation form needs a
+  department list to populate anyway.
+- `DepartmentResource` (id, name).
+- Pest coverage: non-manager forbidden (403), manager create/update/delete
+  happy paths, missing-name validation (422).
+
+**Corrections made to my own draft before this phase closed:**
+- **No dedicated `AuthorizationException` renderer was needed** — the
+  existing catch-all `Throwable` renderer in `bootstrap/app.php` already
+  handles any `HttpExceptionInterface`-implementing exception generically
+  by status code. Since `EnsureRole` uses `abort(403, ...)` (which throws
+  exactly such an exception) rather than throwing `AuthorizationException`
+  directly, the catch-all covers it with zero new code. I'd initially
+  assumed a new renderer was required — it wasn't; withdrawn.
+- **Test assertions fixed for Resource wrapping:** `DepartmentTest`'s
+  create/update assertions were checking `name` at the response root;
+  corrected to `data.name`, since both `store()` and `update()` return a
+  `DepartmentResource` directly (or via `->response()`), which Laravel
+  wraps in a `data` key by default. Standing rule now: `assertJsonPath`
+  needs a `data.` prefix whenever the response is a Resource returned
+  directly by the controller — not needed for plain array/`json()`
+  responses (e.g. the Phase 2 dashboard payload) or a Resource manually
+  nested inside a hand-built array (e.g. Phase 2 login's `user` key).
+
+**Not yet handled:**
+- `DepartmentService::delete()` has no app-level guard against deleting a
+  department that still has cases — relies entirely on the DB's
+  `restrictOnDelete()` FK constraint (Phase 1) to reject it, which surfaces
+  as a raw DB exception rather than a clean validation error. Acceptable
+  for now since Fraud is the only demoed category and department deletion
+  isn't a demo path, but worth a proper `QueryException` → 409/422 mapping
+  before defense if time allows.

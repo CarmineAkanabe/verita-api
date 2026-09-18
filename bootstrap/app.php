@@ -1,11 +1,13 @@
 <?php
 
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -21,7 +23,10 @@ return Application::configure(basePath: dirname(__DIR__))
         ['middleware' => ['auth:api']], // adjust guard once case-api exists in Phase 7
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        //Enforce Json
+        $middleware->alias(['role' => \App\Http\Middleware\EnforceJson::class]);
+        // Ensure Role
+        $middleware->alias(['role' => \App\Http\Middleware\EnsureRole::class]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
@@ -39,6 +44,18 @@ return Application::configure(basePath: dirname(__DIR__))
                 'instance' => $request->path(),
             ], 401);
         });
+
+        // 403 Authorization errors
+        // $exceptions->render(function (AuthorizationException $e, Request $request) {
+        //     if (! $request->is('api/*')) return null;
+        //     return response()->json([
+        //         'type' => 'about:blank',
+        //         'title' => 'Forbidden',
+        //         'status' => 403,
+        //         'detail' => $e->getMessage(),
+        //         'instance' => $request->getRequestUri(),
+        //     ], 403);
+        // });
 
         // 404 Errors, not found
         $exceptions->render(function (NotFoundHttpException $e, $request) {
@@ -65,16 +82,24 @@ return Application::configure(basePath: dirname(__DIR__))
             ], 422);
         });
 
-        // 500 Internal server errors
+        // Catch-all errors (500)
         $exceptions->render(function (Throwable $e, $request) {
             if (!$request->is('api/*')) return null; // let web routes use default Laravel error pages
 
+            // If it's an HTTP exception (like abort()), grab its actual status code. Otherwise default to 500.
+            $statusCode = $e instanceof HttpExceptionInterface ? $e->getStatusCode() : 500;
+
+            // For HTTP exceptions, use the abort() message. For 500s, hide the message in production.
+            $message = $e instanceof HttpExceptionInterface
+                ? $e->getMessage()
+                : (config('app.debug') ? $e->getMessage() : 'Something went wrong.');
+
             return response()->json([
                 'type' => 'about:blank',
-                'title' => 'An unexpected error occurred',
-                'status' => 500,
-                'detail' => config('app.debug') ? $e->getMessage() : 'Something went wrong.',
+                'title' => $statusCode === 500 ? 'An unexpected error occurred' : 'Error',
+                'status' => $statusCode,
+                'detail' => $message ?: 'An error occurred.',
                 'instance' => $request->path(),
-            ], 500);
+            ], $statusCode);
         });
     })->create();
