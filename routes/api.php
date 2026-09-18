@@ -4,6 +4,7 @@ use App\Http\Controllers\V1\AccountController;
 use App\Http\Controllers\V1\AuthController;
 use App\Http\Controllers\V1\CaseAuthController;
 use App\Http\Controllers\V1\CaseDashboardController;
+use App\Http\Controllers\V1\CaseManagementController;
 use App\Http\Controllers\V1\CaseSubmissionController;
 use App\Http\Controllers\V1\DepartmentController;
 use App\Http\Controllers\V1\DepartmentHeadController;
@@ -18,12 +19,19 @@ Route::prefix('v1')->group(function () {
 
     // Test if responsive
     Route::get('/ping', []);
+
     /**
      * Case Reporter Features
      */
+
+    // Case Submission (Anonymous, requires no auth)
+    Route::middleware(['throttle:case-submit', 'idempotency'])
+        ->post('cases', [CaseSubmissionController::class, 'store']);
+
+    // Pin Authentication
     Route::middleware('throttle:pin-verify')
         ->post('cases/{caseId}/verify-pin', [CaseAuthController::class, 'verifyPin']);
-
+    // Tracking Case
     Route::middleware('auth:case-api')->group(function () {
         Route::get('cases/me', [CaseDashboardController::class, 'show']);
         Route::post('cases/me/evidence', [CaseDashboardController::class, 'addEvidence']);
@@ -31,7 +39,11 @@ Route::prefix('v1')->group(function () {
             ->name('cases.me.evidence.show');
     });
 
-    // Authentication(Login)
+    /**
+     *  User Functionalities
+     */
+
+    // Authentication
     Route::post('auth/login', [AuthController::class, 'login'])->middleware('throttle:login');
 
     // Authentication (Account Update and user info)
@@ -55,7 +67,12 @@ Route::prefix('v1')->group(function () {
         Route::apiResource('department-heads', DepartmentHeadController::class)->except(['show']);
     });
 
-    // Case Submission (Anonymous, requires no auth)
-    Route::middleware(['throttle:case-submit', 'idempotency'])
-        ->post('cases', [CaseSubmissionController::class, 'store']);
+    // Department Head Case Management
+    Route::middleware(['auth:api', 'role:DEPARTMENT_HEAD'])->prefix('cases')->group(function () {
+        Route::get('/', [CaseManagementController::class, 'index']);
+        Route::get('/{case}', [CaseManagementController::class, 'show']);
+        Route::post('/{case}/claim', [CaseManagementController::class, 'claim']);
+        Route::patch('/{case}/status', [CaseManagementController::class, 'updateStatus']);
+        Route::get('/{case}/evidence/{evidence}', [CaseManagementController::class, 'evidence']);
+    });
 });

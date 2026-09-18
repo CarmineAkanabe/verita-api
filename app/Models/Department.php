@@ -17,8 +17,6 @@ class Department extends Model
     /** @use HasFactory<\Database\Factories\DepartmentFactory> */
     use HasFactory, HasUuids;
 
-    protected $fillable = ['name'];
-
     public function departmentHeads(): HasMany
     {
         return $this->hasMany(User::class)->where('role', Role::DEPARTMENT_HEAD);

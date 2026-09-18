@@ -20,6 +20,7 @@ class AuditLogService
         AuditAction $action,
         ?string $previousValue,
         ?string $newValue,
+        ?string $note = null
     ): void {
         AuditLog::create([
             'case_record_id' => $case->id,
@@ -27,6 +28,7 @@ class AuditLogService
             'action' => $action,
             'previous_value' => $previousValue,
             'new_value' => $newValue,
+            'note' => $note,
             'logged_at' => now(),
         ]);
     }

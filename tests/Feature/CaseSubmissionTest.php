@@ -70,13 +70,14 @@ it('requires an Idempotency-Key header', function () {
 });
 
 it('creates only one case when the same Idempotency-Key is replayed', function () {
-    $department = Department::factory()->create();
+    $department = Department::factory()->create(['id' => (string) Str::uuid()]);
     $key = (string) Str::uuid();
     $payload = validCasePayload($department);
 
     $this->postJson('/api/v1/cases', $payload, ['Idempotency-Key' => $key])->assertCreated();
     $this->postJson('/api/v1/cases', $payload, ['Idempotency-Key' => $key])->assertCreated();
 
+    dump(CaseRecord::where('department_id', $department->id)->get(['id', 'status'])->toArray());
     // Scope the count strictly to the department isolated in this specific test
     expect(CaseRecord::where('department_id', $department->id)->count())->toBe(1);
 });

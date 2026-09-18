@@ -23,7 +23,8 @@ class CaseSubmissionService
     {
         $plainPin = $this->generatePin();
 
-        $case = DB::transaction(function () use ($data, $plainPin) {
+        // Rename the output variable to $result so it doesn't overwrite the model
+        $result = DB::transaction(function () use ($data, $plainPin) {
             $case = CaseRecord::create([
                 'tracking_pin_hash' => Hash::make($plainPin),
                 'department_id' => $data->departmentId,
@@ -37,31 +38,18 @@ class CaseSubmissionService
                 'status' => CaseStatus::SUBMITTED,
             ]);
 
-            // foreach ($data->evidenceFiles as $file) {
-            //     $path = $file->store("evidence/{$case->id}"); // private 'local' disk
-
-            //     Evidence::create([
-            //         'case_record_id' => $case->id,
-            //         'file_path' => $path,
-            //         'file_type' => str_contains($file->getMimeType(), 'pdf')
-            //             ? EvidenceFileType::PDF
-            //             : EvidenceFileType::IMAGE,
-            //         'uploaded_at' => now(),
-            //     ]);
-            // }
-
             $this->evidence->store($case, $data->evidenceFiles);
 
-            $this->aiProcessing->dispatch($case);
+            $case->update(['status' => CaseStatus::AI_PROCESSING]);
 
+            // Return the array, but DO NOT dispatch the AI job inside the transaction
             return ['case' => $case, 'trackingPin' => $plainPin];
         });
 
-        // Dispatched after the transaction commits — never inside it, same
-        // rule Phase 9 states explicitly for the chat broadcast.
-        ProcessCaseWithAiJob::dispatch($case);
+        // Extract the pure model from the result array and dispatch it here
+        ProcessCaseWithAiJob::dispatch($result['case']);
 
-        return ['case' => $case, 'trackingPin' => $plainPin];
+        return $result;
     }
 
     private function generatePin(): string

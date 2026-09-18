@@ -12,7 +12,15 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['case_record_id', 'actor_type', 'action', 'previous_value', 'new_value', 'logged_at'])]
+#[Fillable([
+    'case_record_id',
+    'actor_type',
+    'action',
+    'previous_value',
+    'new_value',
+    'note',
+    'logged_at'
+])]
 class AuditLog extends Model
 {
     use HasFactory, HasUuids;

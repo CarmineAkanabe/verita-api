@@ -431,3 +431,25 @@ that depend on a runtime-created `Case` and can't go through factories).
   wrapper wouldn't earn its keep here the way `CaseSubmissionData` did.
   Flagged as a conscious call now, not silently dropped; revisit if strict
   cross-phase consistency matters more than this reasoning by defense time.
+
+## Phase 8 — Department Head Case Management ✅ Complete
+
+**Delivered:**
+- Migration: `audit_logs` gets a new nullable `note` text column — the addendum's mandatory-note-per-status-change had nowhere to live without it (`previousValue`/`newValue` stay clean status values). Same shape of deviation as Phase 7's `EVIDENCE_ADDED`.
+- `CaseRecordPolicy` (`app/Policies/`) — first real Policy in the project, as flagged back in Phase 2. Model is `CaseRecord`, not `Case`, so Laravel's convention-based discovery doesn't find it automatically — registered explicitly via `Gate::policy(CaseRecord::class, CasePolicy::class)` in `AppServiceProvider::boot()`. Three methods: `claim` (unclaimed, right department, not conflict-of-interest, `AWAITING_REVIEW`), `view` (assigned DH, or still-unclaimed queue-eligible DH — pre-claim read access), `updateStatus` (strictly the assigned DH).
+- `Route::model('case', CaseRecord::class)` added to `AppServiceProvider::boot()` for the `{case}` route parameter.
+- `UpdateCaseStatusRequest` → `UpdateCaseStatusData` DTO → `CaseManagementService` → `CaseManagementController`.
+- Claim modeled as its own action/endpoint, deliberately not folded into Update Case Status — different concurrency handling (atomic conditional `UPDATE ... WHERE assigned_to IS NULL`, checked via affected-row count inside `DB::transaction()`) and no note required.
+- `CaseAlreadyClaimedException` (extends `ConflictHttpException`) — no dedicated renderer needed, same as Phase 3's finding: the generic `HttpExceptionInterface` catch-all already turns it into a 409 RFC 9457 envelope.
+- Update Case Status: unconditionally writes an `AuditLog` entry (`STATUS_CHANGED`) regardless of new status; `resolutionSummary`/`resolvedAt` only written when the new status is `RESOLVED`/`DISMISSED`; `CaseResolved` event fired only when `RESOLVED`, after the transaction closure returns (no listener yet — Phase 12).
+- `AuditLogService::log()` extended with an optional `?string $note = null` param, written to the new column.
+- `CaseDetailResource` — staff-facing case view (structured fields, evidence, AI summary/timeline/findings).
+- Evidence-serving endpoint for staff, gated by the same `CasePolicy::view` check as the case itself.
+- Pest coverage: queue correctly scoped by department, excludes conflict-of-interest cases; status update requires a note (422); `AuditLog` written on every transition regardless of status; `CaseResolved` fires only on `RESOLVED`.
+
+**Corrections made before this phase closed:**
+- **`CasePolicy::claim()` was briefly reduced to just role + `assigned_to === null`, dropping department scoping and the conflict-of-interest exclusion.** The reduction happened chasing a concurrency test that expected a 409 from two *sequential* `postJson()` calls — but Pest/PHPUnit has no real concurrency, so by the second call the first has already committed, and the full Policy correctly (and desirably) denies it with a 403 before the request ever reaches the Service. The 409 path was never reachable through that test to begin with; trimming the Policy didn't fix anything, it just quietly reopened two real holes (cross-department claim, conflict-of-interest case claimable directly by ID). Restored the Policy in full. Split the test in two instead: an HTTP-level test now asserts the correct 403 on a second sequential attempt; a separate Service-level test proves the actual atomic-update race by claiming through two pre-fetched (stale) `CaseRecord` instances directly, bypassing Policy/HTTP, which is the only way to genuinely exercise `CaseAlreadyClaimedException`.
+
+**Not yet handled — confirmed out of scope, not an oversight:**
+- No enforcement of a strict status-transition graph (nothing stops `UNDER_INVESTIGATION → DISMISSED → RESOLVED`). Neither the master spec nor the addendum specifies allowed transitions beyond the linear lifecycle in §8. Raised at end of phase, confirmed this doesn't matter for defense — leaving as-is, not revisiting unless asked.
+

@@ -18,6 +18,7 @@ return new class extends Migration
             $table->string('action');
             $table->string('previous_value')->nullable();
             $table->string('new_value')->nullable();
+            $table->text('note')->nullable()->after('new_value');
             $table->timestamp('logged_at');
         });
     }

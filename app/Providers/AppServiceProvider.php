@@ -2,7 +2,10 @@
 
 namespace App\Providers;
 
+use App\Models\CaseRecord;
+use App\Policies\CaseRecordPolicy;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
@@ -22,6 +25,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Policy gates
+        Gate::policy(CaseRecord::class, CaseRecordPolicy::class);
         // Rate limiting
         RateLimiter::for(
             'login',
