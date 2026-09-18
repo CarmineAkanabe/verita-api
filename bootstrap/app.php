@@ -2,6 +2,7 @@
 
 // use Illuminate\Auth\Access\AuthorizationException;
 
+use App\Http\Middleware\EnsureIdempotency;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
@@ -25,10 +26,11 @@ return Application::configure(basePath: dirname(__DIR__))
         ['middleware' => ['auth:api']], // adjust guard once case-api exists in Phase 7
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //Enforce Json
-        $middleware->alias(['role' => \App\Http\Middleware\EnforceJson::class]);
-        // Ensure Role
-        $middleware->alias(['role' => \App\Http\Middleware\EnsureRole::class]);
+        $middleware->alias([
+            // 'json' => \App\Http\Middleware\EnforceJson::class,
+            'role' => \App\Http\Middleware\EnsureRole::class,
+            'idempotency' => EnsureIdempotency::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

@@ -259,5 +259,53 @@ that depend on a runtime-created `Case` and can't go through factories).
   Head with cases still `assignedTo` them isn't guarded at the app level —
   relies on whatever FK rule Phase 1 put on `case_records.assigned_to`.
 
-## Phase 5 - Submit Case
-(In progress)  
+## Phase 5 — Submit Case ✅ Complete
+
+**Delivered:**
+- `StoreCaseRequest` → `CaseSubmissionData` DTO → `CaseSubmissionService` →
+  `CaseSubmissionController`. Public route, no `auth:api` — the one endpoint
+  group that isn't behind staff login.
+- Tracking PIN: 6-digit numeric, zero-padded, hashed via `Hash::make()` in
+  the Service, shown once in the response body and never persisted plain.
+- Evidence stored to the private `local` disk (not `public` — kept separate
+  from Phase 2's profile-picture disk, deliberately, given §20's anonymity
+  concerns).
+- `category` hardcoded to `FRAUD` in the Service — not client-supplied,
+  matches §13's form having no category field.
+- `ProcessCaseWithAiJob` stub created (`ShouldQueue`, empty `handle()`) —
+  dispatched after the DB transaction commits, never inside it. Real Gemini
+  logic lands in Phase 6.
+- `EnsureIdempotency` middleware + `IdempotencyRepository` — the real logic
+  Phase 0 flagged as landing here (that entry said "Phase 6," which was a
+  stale label from before the plan got renumbered; Submit Case has always
+  been Phase 5).
+- Pest coverage: happy path (PIN shown once, status lands on
+  `AI_PROCESSING`, job dispatched), missing required field (422), no
+  evidence (422), missing `Idempotency-Key` header (400), replayed key
+  creates only one case, `concernsDepartmentHead` flag persisted for
+  Phase 8's queue filtering.
+
+**Corrections made before this phase closed:**
+- **`Evidence`'s FK is `case_record_id`, not `case_id`.** First draft used
+  the spec's literal `caseId` → `case_id`. Wrong — Phase 1 renamed the class
+  to `CaseRecord` (`case` being a PHP reserved word), and the FK column
+  follows that model name by Eloquent's default `belongsTo()` convention,
+  not the spec's prose. Same applies to every other table that references a
+  case (`messages`, `audit_logs`, `notifications` where relevant) — logged
+  as a standing naming rule, not a one-off fix.
+- **`EnsureIdempotency`'s response capture switched from `$response->getData(true)`
+  to `json_decode($response->getContent(), true)`.** The first version
+  assumed the response was always a `JsonResponse`; the second works
+  regardless of response type. Cache condition also narrowed from "any
+  status < 500" to strict 2xx — a failed submission isn't idempotency-cached,
+  so retrying after an error re-runs from scratch instead of replaying the
+  failure.
+- **Test count assertion scoped to `department_id`:** `CaseRecord::count()`
+  alone was picking up rows from other tests in the same file; scoped the
+  assertion (`CaseRecord::where('department_id', $department->id)->count()`)
+  rather than chasing full test-isolation root cause.
+
+**Not yet handled:**
+- `EnsureIdempotency` currently has two `dump()` calls left in from
+  debugging the cache-hit path. Harmless in tests, but worth pulling before
+  Phase 6 so they don't clutter output or ship further.

@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['case_id', 'file_path', 'file_type', 'uploaded_at'])]
+#[Fillable(['case_record_id', 'file_path', 'file_type', 'uploaded_at'])]
 class Evidence extends Model
 {
     /** @use HasFactory<\Database\Factories\EvidenceFactory> */

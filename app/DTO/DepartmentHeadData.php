@@ -5,7 +5,7 @@ namespace App\DTO;
 use App\Http\Requests\V1\StoreDepartmentHeadRequest;
 use App\Http\Requests\V1\UpdateDepartmentHeadRequest;
 
-class DepartmentHeadData
+readonly class DepartmentHeadData
 {
     /**
      * Create a new class instance.

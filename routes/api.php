@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\V1\AccountController;
 use App\Http\Controllers\V1\AuthController;
+use App\Http\Controllers\V1\CaseSubmissionController;
 use App\Http\Controllers\V1\DepartmentController;
 use App\Http\Controllers\V1\DepartmentHeadController;
 use Illuminate\Support\Facades\Route;
@@ -36,4 +37,8 @@ Route::prefix('v1')->group(function () {
         // User Management
         Route::apiResource('department-heads', DepartmentHeadController::class)->except(['show']);
     });
+
+    // Case Submission (Anonymous, requires no auth)
+    Route::middleware(['throttle:case-submit', 'idempotency'])
+        ->post('cases', [CaseSubmissionController::class, 'store']);
 });
