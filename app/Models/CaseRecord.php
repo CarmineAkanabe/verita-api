@@ -6,12 +6,15 @@ namespace App\Models;
 
 use App\Enums\CaseCategory;
 use App\Enums\CaseStatus;
+use Illuminate\Auth\Authenticatable;
+use Illuminate\Contracts\Auth\Authenticatable as AuthenticatableContract;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Tymon\JWTAuth\Contracts\JWTSubject;
 
 #[Fillable([
     'tracking_pin_hash',
@@ -28,10 +31,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'ai_summary',
     'ai_findings',
 ])]
-class CaseRecord extends Model
+class CaseRecord extends Model implements AuthenticatableContract, JWTSubject
 {
     /** @use HasFactory<\Database\Factories\CaseRecordFactory> */
-    use HasFactory, HasUuids;
+    use HasFactory, HasUuids, Authenticatable;
 
     protected function casts(): array
     {
@@ -46,6 +49,10 @@ class CaseRecord extends Model
             'concerns_department_head' => 'boolean',
         ];
     }
+
+    /**
+     * Relationships
+     */
 
     public function department(): BelongsTo
     {
@@ -70,5 +77,19 @@ class CaseRecord extends Model
     public function auditLogs(): HasMany
     {
         return $this->hasMany(AuditLog::class, 'case_record_id');
+    }
+
+    /**
+     * JWT Auth
+     */
+
+    public function getJWTIdentifier(): string
+    {
+        return $this->getKey();
+    }
+
+    public function getJWTCustomClaims(): array
+    {
+        return [];
     }
 }

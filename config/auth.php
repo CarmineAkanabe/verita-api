@@ -46,6 +46,10 @@ return [
             'driver' => 'jwt',
             'provider' => 'users',
         ],
+        'case-api' => [
+            'driver' => 'jwt',
+            'provider' => 'cases',
+        ],
     ],
 
     /*
@@ -69,6 +73,10 @@ return [
         'users' => [
             'driver' => 'eloquent',
             'model' => env('AUTH_MODEL', User::class),
+        ],
+        'cases' => [
+            'driver' => 'eloquent',
+            'model' => App\Models\CaseRecord::class,
         ],
 
         // 'users' => [

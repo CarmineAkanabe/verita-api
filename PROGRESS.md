@@ -368,3 +368,66 @@ that depend on a runtime-created `Case` and can't go through factories).
   clean `AuditAction` value fits a failure) and no Manager-visible surface
   beyond the case sitting at `AI_PROCESSING`. Flagged last phase too, still
   open.
+
+## Phase 7 — Case Dashboard & Tracking (Case Reporter side) ✅ Complete
+
+**Delivered:**
+- `CaseRecord` made `Authenticatable` + `JWTSubject` directly — no separate
+  auth model. One token serves this phase's Dashboard now and Phase 9's Chat
+  later. New `case-api` guard/provider pair in `config/auth.php`.
+- Verify Case ID + Tracking PIN → JWT: `CaseAuthService::verifyPin()` does a
+  **manual** `CaseRecord::find()`, not route-model binding — binding would
+  404 on a bad Case ID before the PIN check ever runs, which is a different
+  response than the 401 for a right-ID-wrong-PIN case and would leak which
+  Case IDs exist. Both failure modes collapse into the same generic 401.
+  `pin-verify` rate limiter (Phase 0) attached.
+- `GET /cases/me` — status-aware payload via `CaseReporterDashboardResource`:
+  own fields + evidence always; `aiSummary`/`aiTimeline`/`aiFindings` only
+  once status is past `SUBMITTED`/`AI_PROCESSING` (`$this->when()`, not a
+  separate endpoint or screen).
+- `POST /cases/me/evidence` — appends evidence, re-triggers AI processing via
+  Phase 6's `AiProcessingService::dispatch()` (the `reprocessWithAI()` reuse
+  the plan called for).
+- `GET /cases/me/evidence/{evidence}` — streams the file via
+  `Storage::response()`; ownership check returns 404 (not 403) on a mismatch,
+  same information-hiding principle as the verify-pin 401 — a token doesn't
+  get confirmation that evidence belonging to a different case even exists.
+- **Second Phase 5 retrofit:** extracted `EvidenceService::store()` (file
+  store + `Evidence::create()`) out of `CaseSubmissionService`, now shared
+  with Add Evidence rather than duplicated a second time.
+- **New this phase, not in the master spec's class model:** added
+  `EVIDENCE_ADDED` to `AuditAction` (`actorType: SYSTEM`), logged whenever
+  the Case Reporter adds evidence post-submission. The spec's five-value
+  enum only covers AI/Department-Head-initiated events; a reporter-triggered
+  state change (status flips back to `AI_PROCESSING`) was going untracked
+  entirely, which undercuts the same traceability goal `ESCALATED` exists
+  for. Same shape of exception, same justification. **Spec file update is
+  the user's own follow-up, not done here.**
+- Pest coverage: verify-pin happy path + matching 401 shape for both failure
+  modes; dashboard payload differs correctly by status; add-evidence
+  re-triggers reprocessing and writes the new audit entry; evidence download
+  rejects a token for a different case.
+
+**Corrections made before this phase closed:**
+- **Token-minting in tests used `auth('case-api')->login($case)`, which
+  produced spurious 201s on `GET`/`POST` calls (tests 3, 4, 5, 7).** Not a
+  status-code quirk to special-case with `assertCreated()` — `login()`
+  caches `$case` as the guard's current user, and Laravel's in-process test
+  requests reuse that same cached object instead of re-resolving off the
+  token, so it still carried `wasRecentlyCreated = true` from the factory
+  call. `JsonResource` reads that flag for its status code. Production code
+  never hits this (`$request->user('case-api')` always resolves fresh from
+  the JWT), so the tests were asserting a status the real API can't produce.
+  Fixed by minting with `JWTAuth::fromUser($case)` instead, which doesn't
+  touch the guard's cached user — tests now correctly assert `assertOk()`.
+  `CaseAuthService::verifyPin()` itself was untouched; `login()` there is
+  correct, since authenticating *is* that endpoint's job.
+
+**Not yet handled:**
+- Phase 7's controllers skip the Request → DTO → Service pattern Phase 4-6
+  used everywhere else (`CaseAuthService::verifyPin()` takes two scalars;
+  `EvidenceService::store()` takes the authenticated `$case` + a raw file
+  array) — neither arg set is really "a validated request body," so a DTO
+  wrapper wouldn't earn its keep here the way `CaseSubmissionData` did.
+  Flagged as a conscious call now, not silently dropped; revisit if strict
+  cross-phase consistency matters more than this reasoning by defense time.
