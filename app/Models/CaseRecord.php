@@ -25,6 +25,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'status',
     'assigned_to',
     'concerns_department_head',
+    'ai_summary',
+    'ai_findings',
 ])]
 class CaseRecord extends Model
 {
@@ -57,16 +59,16 @@ class CaseRecord extends Model
 
     public function evidence(): HasMany
     {
-        return $this->hasMany(Evidence::class, 'case_id');
+        return $this->hasMany(Evidence::class, 'case_record_id');
     }
 
     public function messages(): HasMany
     {
-        return $this->hasMany(Message::class, 'case_id');
+        return $this->hasMany(Message::class, 'case_record_id');
     }
 
     public function auditLogs(): HasMany
     {
-        return $this->hasMany(AuditLog::class, 'case_id');
+        return $this->hasMany(AuditLog::class, 'case_record_id');
     }
 }

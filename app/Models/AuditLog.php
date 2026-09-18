@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['case_id', 'actor_type', 'action', 'previous_value', 'new_value', 'logged_at'])]
+#[Fillable(['case_record_id', 'actor_type', 'action', 'previous_value', 'new_value', 'logged_at'])]
 class AuditLog extends Model
 {
     use HasFactory, HasUuids;
@@ -30,6 +30,6 @@ class AuditLog extends Model
 
     public function case(): BelongsTo
     {
-        return $this->belongsTo(CaseRecord::class, 'case_id');
+        return $this->belongsTo(CaseRecord::class, 'case_record_id');
     }
 }

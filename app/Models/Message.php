@@ -28,6 +28,6 @@ class Message extends Model
 
     public function case(): BelongsTo
     {
-        return $this->belongsTo(CaseRecord::class, 'case_id');
+        return $this->belongsTo(CaseRecord::class, 'case_record_id');
     }
 }

@@ -17,7 +17,7 @@ class CaseSubmissionService
     /**
      * Create a new class instance.
      */
-    public function __construct() {}
+    public function __construct(public AiProcessingService $aiProcessing) {}
 
     public function submit(CaseSubmissionData $data): array
     {
@@ -50,9 +50,9 @@ class CaseSubmissionService
                 ]);
             }
 
-            $case->update(['status' => CaseStatus::AI_PROCESSING]);
+            $this->aiProcessing->dispatch($case);
 
-            return $case;
+            return ['case' => $case, 'trackingPin' => $plainPin];
         });
 
         // Dispatched after the transaction commits — never inside it, same

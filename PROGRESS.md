@@ -309,3 +309,62 @@ that depend on a runtime-created `Case` and can't go through factories).
 - `EnsureIdempotency` currently has two `dump()` calls left in from
   debugging the cache-hit path. Harmless in tests, but worth pulling before
   Phase 6 so they don't clutter output or ship further.
+
+## Phase 6 — AI Structuring (Gemini Integration) ✅ Complete
+
+**Delivered:**
+- `GeminiService::analyzeCase()` — builds the prompt from the Case's
+  structured fields, attaches Evidence as inline multimodal parts (mime
+  type read off disk via `Storage::mimeType()`, not guessed from the
+  `IMAGE`/`PDF` enum), requests strict JSON via `responseMimeType` +
+  `thinkingConfig.thinkingBudget => 0` (closes the cost/latency flag Phase 0
+  raised).
+- `AiCaseAnalysisData` (`app/DTO`) — `spatie/laravel-data`, per Phase 2's
+  decision to make this the one exception to the plain-readonly-DTO default.
+- `ProcessCaseWithAiJob` fleshed out from Phase 5's stub: parses the Gemini
+  response into the DTO *before* touching the DB (malformed response never
+  produces a partial save), writes `aiSummary`/`aiTimeline`/`aiFindings`,
+  flips status to `AWAITING_REVIEW`, writes the `AuditLog` entry
+  (`actorType: AI`, `action: AI_PROCESSED`) inside the same transaction,
+  fires `CaseReadyForReview` after the transaction commits. `$tries = 3`,
+  backoff `[10, 30, 60]`.
+- `AuditLogService` — small wrapper Service, first use of the "automatic,
+  never manual" AuditLog rule (§6.1); reused wherever else the spec names
+  the AI job, `updateStatus()`, or escalation as auto-logging.
+- `AiProcessingService::dispatch()` — the `reprocessWithAI()` entry point
+  the master spec lists on `Case`, MVCS-relocated to a Service. Sets status
+  back to `AI_PROCESSING` and re-dispatches the job; this is what Phase 7's
+  Add Evidence flow will call, and what recovers a case after retries
+  exhaust.
+- **Phase 5 retrofit:** `CaseSubmissionService` now calls
+  `AiProcessingService::dispatch()` instead of inlining its own
+  status-flip-then-dispatch — collapses duplicated logic now that a shared
+  entry point exists.
+- Pest coverage: valid response maps onto the case + fires the event;
+  malformed response throws (no partial save, case stays at
+  `AI_PROCESSING`); reprocessing re-dispatches the same job.
+
+**Corrections made before this phase closed:**
+- **`CaseRecord::$fillable` was missing `ai_summary`/`ai_findings`.** Mass
+  assignment silently dropped both until added — worth checking `$fillable`
+  proactively whenever a future phase's `update()` call introduces a column
+  Phase 1 didn't already write to (Phase 8's `resolutionSummary`/`assignedTo`
+  are the next likely hit).
+- **Malformed-response test asserts `Exception::class`, not `Throwable::class`.**
+  Confirms `AiCaseAnalysisData::from()` throws a clean Exception subtype
+  (spatie's own, from missing required keys) rather than a raw `TypeError` —
+  good, means the `failed()`/retry path is catching a well-formed error, not
+  an incidental PHP type error.
+- **`GeminiService::endpoint()` already existed** — confirmed shape:
+  `config('services.gemini.model', 'gemini-3.5-flash')` +
+  `config('services.gemini.key')`, matches what `analyzeCase()` assumed.
+- **Evidence tied to the case via plain `case_record_id` assignment**
+  (`Evidence::factory()->create(['case_record_id' => $case->id])`), not a
+  named relation factory state — sidesteps needing to know the exact
+  relation method name.
+
+**Not yet handled:**
+- `failed()` still just calls `report($exception)` — no AuditLog entry (no
+  clean `AuditAction` value fits a failure) and no Manager-visible surface
+  beyond the case sitting at `AI_PROCESSING`. Flagged last phase too, still
+  open.
