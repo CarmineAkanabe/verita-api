@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -39,5 +40,9 @@ class AppServiceProvider extends ServiceProvider
             fn($request) =>
             Limit::perMinute(10)->by($request->ip())
         );
+
+        Route::bind('department_head', fn(string $id) => \App\Models\User::where('id', $id)
+            ->where('role', \App\Enums\Role::DEPARTMENT_HEAD)
+            ->firstOrFail());
     }
 }

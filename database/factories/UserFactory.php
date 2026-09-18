@@ -48,4 +48,11 @@ class UserFactory extends Factory
             'staff_id' => 'STF-' . fake()->unique()->numerify('####'),
         ]);
     }
+
+    public function departmentHead(): static
+    {
+        return $this->state(fn(array $attributes) => [
+            'role' => Role::DEPARTMENT_HEAD,
+        ]);
+    }
 }

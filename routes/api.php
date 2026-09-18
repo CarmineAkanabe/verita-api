@@ -3,6 +3,7 @@
 use App\Http\Controllers\V1\AccountController;
 use App\Http\Controllers\V1\AuthController;
 use App\Http\Controllers\V1\DepartmentController;
+use App\Http\Controllers\V1\DepartmentHeadController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -28,5 +29,11 @@ Route::prefix('v1')->group(function () {
         Route::post('/', [DepartmentController::class, 'store']);
         Route::put('/{department}', [DepartmentController::class, 'update']);
         Route::delete('/{department}', [DepartmentController::class, 'destroy']);
+    });
+
+    //Manager Features
+    Route::middleware(['auth:api', 'role:MANAGER'])->group(function () {
+        // User Management
+        Route::apiResource('department-heads', DepartmentHeadController::class)->except(['show']);
     });
 });

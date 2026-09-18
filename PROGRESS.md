@@ -216,3 +216,48 @@ that depend on a runtime-created `Case` and can't go through factories).
   for now since Fraud is the only demoed category and department deletion
   isn't a demo path, but worth a proper `QueryException` → 409/422 mapping
   before defense if time allows.
+
+## Phase 4 — Manage User Accounts (Department Heads) ✅ Complete
+
+**Delivered:**
+- Create/Update/Delete Department Head account, Manager-only:
+  `StoreDepartmentHeadRequest`/`UpdateDepartmentHeadRequest` → `DepartmentHeadData`
+  DTO → `DepartmentHeadService` → `DepartmentHeadController`.
+- **Added beyond the plan doc's literal scope:** `GET /api/v1/department-heads`
+  (list) — same rationale as Phase 3's department list: Manage User Accounts
+  with no way to see existing accounts isn't really usable.
+- Route-model binding for `{departmentHead}` scoped to `role = DEPARTMENT_HEAD`
+  in `AppServiceProvider::boot()` — prevents the route resolving against a
+  Manager's own `User` row.
+- Initial password is set directly by the Manager in the create request (plain
+  field, hashed via the existing `'hashed'` cast on `User`) — no invite/temp-
+  password email flow, since Phase 12's email dispatch isn't built yet.
+- `UserFactory::departmentHead()` state added (`role => Role::DEPARTMENT_HEAD`),
+  used by this phase's own tests.
+- Pest coverage (`DepartmentHeadTest`): non-manager forbidden (403), manager
+  create/update/delete happy paths, create against nonexistent department (422).
+
+**Deviation from the plan doc's literal routing, forced by a failing test:**
+- Department Head routes are **not** in the same `Route::group` as Phase 3's
+  Department routes. They sit in their own `role:MANAGER` group ("Manager
+  Features") separate from the `departments` prefix group — grouping them
+  together 404'd until split out this way.
+
+**Corrections made before this phase closed:**
+- **`UserResource`'s null-safe operator was on the wrong receiver.** First
+  draft (Gemini-suggested): `$this?->presence_status->value` — guards `$this`
+  (the Resource, never null), not the actual nullable field. Fixed to
+  `$this->presence_status?->value`. Not exercised by current tests (fixtures
+  always populate `presence_status`), so the fix is correct by inspection,
+  not proven by a passing test — flagging, not claiming certainty.
+- **`DepartmentHeadController::update()` needed `$departmentHead->refresh()`**
+  after the service call — without it, the returned `UserResource` was stale
+  relative to the row just written.
+
+**Not yet handled:**
+- Same gap Phase 3 flagged for department deletion: deleting a Department
+  Head with cases still `assignedTo` them isn't guarded at the app level —
+  relies on whatever FK rule Phase 1 put on `case_records.assigned_to`.
+
+## Phase 5 - Submit Case
+(In progress)  

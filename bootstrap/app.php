@@ -1,5 +1,7 @@
 <?php
 
+// use Illuminate\Auth\Access\AuthorizationException;
+
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
@@ -46,16 +48,16 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         // 403 Authorization errors
-        // $exceptions->render(function (AuthorizationException $e, Request $request) {
-        //     if (! $request->is('api/*')) return null;
-        //     return response()->json([
-        //         'type' => 'about:blank',
-        //         'title' => 'Forbidden',
-        //         'status' => 403,
-        //         'detail' => $e->getMessage(),
-        //         'instance' => $request->getRequestUri(),
-        //     ], 403);
-        // });
+        $exceptions->render(function (AuthorizationException $e, Request $request) {
+            if (! $request->is('api/*')) return null;
+            return response()->json([
+                'type' => 'about:blank',
+                'title' => 'Forbidden',
+                'status' => 403,
+                'detail' => $e->getMessage(),
+                'instance' => $request->getRequestUri(),
+            ], 403);
+        });
 
         // 404 Errors, not found
         $exceptions->render(function (NotFoundHttpException $e, $request) {
