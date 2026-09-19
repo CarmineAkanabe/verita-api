@@ -60,7 +60,7 @@ class CaseRecord extends Model implements AuthenticatableContract, JWTSubject
         return $this->belongsTo(Department::class);
     }
 
-    public function assignedDepartmentHead(): BelongsTo
+    public function assignedTo(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_to');
     }

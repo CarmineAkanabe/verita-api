@@ -500,3 +500,76 @@ that depend on a runtime-created `Case` and can't go through factories).
 
 **Not yet handled — carried forward, not this phase's job:** `EVIDENCE_REVIEWED` still has no write site anywhere in Phases 8–11 despite being one of the five `AuditAction` values. Explicitly Phase 14's responsibility per the plan doc ("confirming each value is actually written where the spec says it should be"), not patched in sideways here.
 
+## Phase 12 — Notifications (In-App + Email) ✅ Complete
+
+**Delivered:**
+- New enum `NotificationType` (`app/Enums/`): `CASE_READY_FOR_REVIEW` / `CASE_ASSIGNED` /
+  `NEW_MESSAGE` / `CASE_RESOLVED` / `CASE_ESCALATED` — the master spec never enumerated
+  `Notification.type`'s values, same shape of implementation delta as Phase 1's
+  `Notification.status` enum.
+- `presence_status` finally gets a writer — the question Phase 9 carried forward. Set in
+  `AuthService::login()`/`logout()`, not Reverb presence-channel callbacks. Known gap
+  accepted: stays `ONLINE` if a client disconnects without an explicit logout; fine for
+  demo scope, not revisited.
+- `NotificationService::record()` — writes the in-app `Notification` row only. Deliberately
+  does not send mail itself; email dispatch is a separate `Mail::to()->queue()` call made
+  by each Listener, keeping "record" and "mirror to email" independently testable.
+- Five `ShouldQueue` Listeners, one per event already firing since Phases 6/8/9/10/11
+  (`CaseReadyForReview`, `CaseAssigned`, `MessageSent`, `CaseResolved`, `CaseEscalated`).
+  Recipient/condition map:
+  - `CaseReadyForReview` → every Dept Head in the case's department, unconditional
+  - `CaseAssigned` → the assigned Dept Head, unconditional
+  - `MessageSent` → the case's assigned Dept Head, only if sender is `CASE_REPORTER`
+    **and** that Dept Head's `presence_status` is `OFFLINE` (DH→Reporter never notifies —
+    Reporter has no account/email to notify)
+  - `CaseResolved` → every Manager, unconditional
+  - `CaseEscalated` → every Manager, unconditional
+- Four Mailables: `CaseReadyForReviewMail`, `CaseAssignedMail`, `NewMessageMail`,
+  `CaseOutcomeMail` — the last shared by both `CaseResolved`/`CaseEscalated`, parametrized
+  by a `$reason` string rather than two near-identical classes.
+- Logo: `public/images/verita-logo.png`, wired into
+  `resources/views/vendor/mail/html/header.blade.php` (published via
+  `vendor:publish --tag=laravel-mail`) — every markdown mail inherits it automatically,
+  no per-template markup.
+- `GET /notifications` (paginated, own records only) and
+  `PATCH /notifications/{notification}` (mark read; 403 on someone else's) —
+  `NotificationController` + `NotificationResource`.
+- Pest coverage (`NotificationsTest`): one test per trigger point (row + mail queued),
+  the two `MessageSent` non-triggering branches (DH online; DH sends instead of reporter),
+  and the two endpoint tests (own-notifications-only listing, mark-as-read + forbidden).
+
+**Corrections made before this phase closed:**
+- Test draft assumed `CaseAssigned`'s constructor took `($case, $head)` — actual signature
+  is `(public readonly CaseRecord $case)`, matching `CaseReadyForReview`/`CaseResolved`/
+  `CaseEscalated`'s shared shape. Dropped the extra arg once checked against source.
+- **Adding `ShouldQueue` to the five Listeners made all five event-driven tests fail
+  silently — 0 notifications, no exception — even though the identical assertions passed
+  with `ShouldQueue` removed.** A queued listener's dispatch just pushes onto
+  `queue.default` and returns; pushing never throws, so if the effective queue connection
+  at test runtime wasn't actually synchronous, every side effect vanishes with no error
+  signal beyond the missing assertion. Root mechanism not conclusively isolated (leading
+  hypothesis: a stale `bootstrap/cache/config.php` from an earlier `config:cache` run,
+  overriding `.env.testing`'s `QUEUE_CONNECTION=sync`) — fixed by pinning explicitly in
+  `NotificationsTest`'s `beforeEach()` rather than by confirming the cache theory:
+```php
+  beforeEach(fn () => config([
+      'queue.default' => 'sync',
+      'broadcasting.default' => 'null',
+  ]));
+```
+  `broadcasting.default` was pinned in the same call; whether it was actually load-bearing
+  for *this* failure (versus `queue.default` alone) wasn't isolated separately — both
+  changed together and all ten tests pass. Worth a separate check later if it matters
+  elsewhere, not urgent now.
+- **General lesson for later phases:** this is very likely the first place in the project
+  a queued Listener's real dispatch path (not a directly-called `handle()`, the way Phase 6's
+  AI job test almost certainly worked) got exercised end-to-end in a test. Any future test
+  asserting on a `ShouldQueue` side effect should pin `queue.default` explicitly rather than
+  trust ambient `.env.testing` state.
+
+**Not yet handled — confirmed out of scope, not an oversight:**
+- `NotificationChannel::IN_APP` (no email mirror) is defined but never produced by this
+  phase's Listeners — every trigger implemented here is one of the master spec's four
+  Gmail-mirrored trigger points, so `IN_APP_AND_EMAIL` is the only value this code path
+  ever writes. Matches the spec's framing (those four *are* what generates a notification
+  at all), not a gap.

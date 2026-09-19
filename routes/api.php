@@ -13,6 +13,7 @@ use App\Http\Controllers\V1\DepartmentController;
 use App\Http\Controllers\V1\DepartmentHeadController;
 use App\Http\Controllers\V1\EvidenceDownloadController;
 use App\Http\Controllers\V1\MessageController;
+use App\Http\Controllers\V1\NotificationController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -99,4 +100,8 @@ Route::prefix('v1')->group(function () {
         Route::get('/', [CaseAssignmentController::class, 'index']);
         Route::post('/{case}', [CaseAssignmentController::class, 'assign']);
     });
+
+    // Notifications
+    Route::get('notifications', [NotificationController::class, 'index']);
+    Route::patch('notifications/{notification}', [NotificationController::class, 'markAsRead']);
 });

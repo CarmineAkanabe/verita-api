@@ -43,6 +43,6 @@ class EnsureIdempotency
             dump("SAVED TO CACHE KEY: " . $scopedKey); // <-- DEBUG 2
         }
 
-        return $next($request);
+        return $response;
     }
 }

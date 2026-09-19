@@ -16,6 +16,13 @@ use Tests\TestCase;
 
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
+    // ->beforeEach(function () {
+    //     // This now applies automatically to EVERY test in your suite!
+    //     config([
+    //         'queue.default' => 'sync',
+    //         'broadcasting.default' => 'null',
+    //     ]);
+    // })
     ->in('Feature');
 
 /*

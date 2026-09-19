@@ -26,7 +26,7 @@ class Message extends Model
         ];
     }
 
-    public function case(): BelongsTo
+    public function caseRecord(): BelongsTo
     {
         return $this->belongsTo(CaseRecord::class, 'case_record_id');
     }

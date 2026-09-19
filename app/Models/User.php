@@ -59,7 +59,7 @@ class User extends Authenticatable implements JWTSubject
         return $this->hasMany(CaseRecord::class, 'assigned_to');
     }
 
-    public function receivedNotifications(): HasMany
+    public function notifications(): HasMany
     {
         return $this->hasMany(Notification::class, 'user_id');
     }

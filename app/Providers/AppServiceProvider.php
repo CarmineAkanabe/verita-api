@@ -31,13 +31,13 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for(
             'login',
             fn($request) =>
-            Limit::perMinute(5)->by($request->ip())
+            Limit::perMinute(50)->by($request->ip())
         );
 
         RateLimiter::for(
             'case-submit',
             fn($request) =>
-            Limit::perMinute(3)->by($request->ip())
+            Limit::perMinute(30)->by($request->ip())
         );
 
         RateLimiter::for(
