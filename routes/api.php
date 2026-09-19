@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\V1\AccountController;
 use App\Http\Controllers\V1\AuthController;
+use App\Http\Controllers\V1\CaseAssignmentController;
 use App\Http\Controllers\V1\CaseAuthController;
 use App\Http\Controllers\V1\CaseDashboardController;
 use App\Http\Controllers\V1\CaseManagementController;
@@ -88,5 +89,11 @@ Route::prefix('v1')->group(function () {
         // Messaging
         Route::get('/{case}/messages', [MessageController::class, 'index']);
         Route::post('/{case}/messages', [MessageController::class, 'store']);
+    });
+
+    // Assign Case System / Manager
+    Route::middleware(['auth:api', 'role:MANAGER'])->prefix('case-assignments')->group(function () {
+        Route::get('/', [CaseAssignmentController::class, 'index']);
+        Route::post('/{case}', [CaseAssignmentController::class, 'assign']);
     });
 });

@@ -471,3 +471,15 @@ that depend on a runtime-created `Case` and can't go through factories).
 
 **Open question carried into Phase 12, not solved here:** nothing in the master spec or addendum says who actually flips `presence_status` between `ONLINE`/`OFFLINE` — Phase 9's job was exposing the field on the reporter's chat payload, not maintaining it. Two realistic options for Phase 12: set it in `AuthService::login()`/`logout()` (cheap, wrong the moment a tab closes without logging out) or wire Reverb presence-channel `here`/`joining`/`leaving` callbacks (correct, but a second channel type to keep in sync with this one). Decide when Phase 12's offline-email trigger actually needs it to be right — not before.
 
+## Phase 10 — Assign Case ✅ Complete
+
+**Delivered:**
+- `case-assignments` given its own top-level route prefix rather than nesting further under `/cases/{case}/...` — that prefix already carries `/cases/{case}`, `/cases/{case}/claim`, `/cases/{case}/status`, `/cases/{case}/messages`, and Phase 7's `/cases/me`; a distinct segment sidesteps a repeat of the registration-order issue already hit once.
+- `AssignCaseRequest` → `AssignCaseData` DTO → `CaseAssignmentService` → `CaseAssignmentController`, Manager-only via `role:MANAGER` middleware (no Policy needed — matches Phase 3/4's precedent that role-level, non-instance checks stay at the middleware layer).
+- `departmentHeadId` validated against `users` scoped to `role = DEPARTMENT_HEAD` — a nonexistent ID or a Manager's own ID both fail with a clean 422 before ever reaching the Service.
+- `CaseAssignmentService::assign()` — single-column write, not wrapped in `DB::transaction()` (below the Global Conventions' multi-write threshold); fires `CaseAssigned` (no listener yet — Phase 12). Reassignment falls out for free — `assign()` doesn't branch on whether `assigned_to` was already set.
+- **No `AuditLog` entry written** — per the plan doc's explicit instruction, matching the master spec's five-value `AuditAction` enum, which doesn't include assignment.
+- `awaitingAssignment()` lists conflict-of-interest cases with `assigned_to IS NULL`; no separate status filter needed since a case can't reach `RESOLVED`/`DISMISSED` without an assigned Department Head in the first place (`CasePolicy::updateStatus` — now `CaseRecordPolicy` — already enforces that).
+- Pest coverage: non-Manager forbidden; happy-path assignment sets `assignedTo` and fires the event; no `AuditLog` row created; invalid `departmentHeadId` → 422; reassigning an already-assigned case succeeds; queue listing excludes non-conflict cases and already-assigned ones.
+
+**Not yet handled:** nothing flagged this phase — no surprises, no deviations from the plan doc.
