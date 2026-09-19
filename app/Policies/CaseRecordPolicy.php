@@ -22,6 +22,10 @@ class CaseRecordPolicy
     /** Assigned DH, or still-unclaimed queue-eligible DH (pre-claim read access). */
     public function view(User $user, CaseRecord $case): bool
     {
+        if ($user->role === Role::MANAGER) {
+            return $case->escalated_at !== null;
+        }
+
         if ($user->role !== Role::DEPARTMENT_HEAD) {
             return false;
         }

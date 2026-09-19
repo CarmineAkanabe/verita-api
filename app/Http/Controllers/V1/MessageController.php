@@ -17,7 +17,7 @@ class MessageController extends Controller
 
     public function index(CaseRecord $case)
     {
-        $this->authorize('communicate', $case);
+        $this->authorize('view', $case);
         return response()->json([
             'messages' => MessageResource::collection(
                 $case->messages()->orderBy('sent_at')->get()

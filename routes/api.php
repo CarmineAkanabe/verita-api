@@ -6,6 +6,7 @@ use App\Http\Controllers\V1\CaseAssignmentController;
 use App\Http\Controllers\V1\CaseAuthController;
 use App\Http\Controllers\V1\CaseDashboardController;
 use App\Http\Controllers\V1\CaseManagementController;
+use App\Http\Controllers\V1\CaseReporterEscalationController;
 use App\Http\Controllers\V1\CaseReporterMessageController;
 use App\Http\Controllers\V1\CaseSubmissionController;
 use App\Http\Controllers\V1\DepartmentController;
@@ -46,6 +47,7 @@ Route::prefix('v1')->group(function () {
         Route::middleware('auth:case-api')->prefix('cases/me')->group(function () {
             Route::get('/messages', [CaseReporterMessageController::class, 'index']);
             Route::post('/messages', [CaseReporterMessageController::class, 'store']);
+            Route::post('/escalate', [CaseReporterEscalationController::class, 'escalate']);
         });
     });
 
@@ -77,18 +79,19 @@ Route::prefix('v1')->group(function () {
         Route::apiResource('department-heads', DepartmentHeadController::class)->except(['show']);
     });
 
-    // Department Head Activities
+    // Department Head Activities — actions only the assigned/claiming DH can do
     Route::middleware(['auth:api', 'role:DEPARTMENT_HEAD'])->prefix('cases')->group(function () {
-        // Case Management
         Route::get('/', [CaseManagementController::class, 'index']);
-        Route::get('/{case}', [CaseManagementController::class, 'show']);
         Route::post('/{case}/claim', [CaseManagementController::class, 'claim']);
         Route::patch('/{case}/status', [CaseManagementController::class, 'updateStatus']);
-        Route::get('/{case}/evidence/{evidence}', [CaseManagementController::class, 'evidence']);
-
-        // Messaging
-        Route::get('/{case}/messages', [MessageController::class, 'index']);
         Route::post('/{case}/messages', [MessageController::class, 'store']);
+    });
+
+    // Case Viewing — DH (assigned or queue-eligible) OR Manager (escalated cases only — CaseRecordPolicy::view enforces which)
+    Route::middleware(['auth:api', 'role:DEPARTMENT_HEAD,MANAGER'])->prefix('cases')->group(function () {
+        Route::get('/{case}', [CaseManagementController::class, 'show']);
+        Route::get('/{case}/evidence/{evidence}', [CaseManagementController::class, 'evidence']);
+        Route::get('/{case}/messages', [MessageController::class, 'index']);
     });
 
     // Assign Case System / Manager

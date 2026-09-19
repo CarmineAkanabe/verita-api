@@ -483,3 +483,20 @@ that depend on a runtime-created `Case` and can't go through factories).
 - Pest coverage: non-Manager forbidden; happy-path assignment sets `assignedTo` and fires the event; no `AuditLog` row created; invalid `departmentHeadId` → 422; reassigning an already-assigned case succeeds; queue listing excludes non-conflict cases and already-assigned ones.
 
 **Not yet handled:** nothing flagged this phase — no surprises, no deviations from the plan doc.
+
+## Phase 11 — Escalation Path ✅ Complete
+
+**Delivered:**
+- `escalated_at` (nullable timestamp) added to `case_records` — same shape as the existing `resolved_at` milestone column. Escalation isn't a `status` transition (the case keeps whatever status it had), so there's no enum value to represent it; flagged as a deviation the same way as the other implementation-level additions.
+- `CaseRecordPolicy::view()` extended: a Manager passes only when `escalated_at !== null`; a Department Head's branch is unchanged. `claim` and `updateStatus` were left untouched on purpose — escalation grants read access only, never investigative authority.
+- `CaseEscalated` event — no listener yet, Phase 12 attaches it, same pattern as `CaseReadyForReview`/`CaseResolved`/`CaseAssigned`.
+- `EscalationService::escalate()` — inside `DB::transaction()`: sets `escalated_at`, writes an `AuditLog` entry (`actorType: SYSTEM`, `action: ESCALATED`); event dispatched after commit.
+- `CaseReporterEscalationController` (`case-api` guard) — no Request/DTO, matches Phase 7's precedent that an empty-body action isn't worth wrapping.
+- `CaseDetailResource` — `escalatedAt` field added.
+- **Route retrofit on Phase 8/9's case routes** — the blanket `role:DEPARTMENT_HEAD` group made Manager access to an escalated case unreachable regardless of what the Policy said, since the middleware would 403 first. Split into two groups: a DH-only group (`index`, `claim`, `updateStatus`, message `store`) and a `role:DEPARTMENT_HEAD,MANAGER` group (`show`, `evidence`, message `index`) — the Policy still does the actual per-case gating, this only decides who can reach the controller at all.
+- `MessageController::index()` — `authorize()` call changed from `communicate` to `view`; reading the chat log is what escalation grants, sending stays DH-only (`store()` untouched — no `MANAGER` value exists on `SenderType`, out of scope here).
+- **Verified, not just assumed:** `EnsureRole` was already variadic (`string ...$roles`) with a correct `in_array` check from Phase 3 — `role:DEPARTMENT_HEAD,MANAGER` worked with zero middleware changes needed.
+- Pest coverage: Case Reporter escalates → audit entry + event fired; Manager granted access to an escalated case, denied on an ordinary one; Manager's access extends to that case's chat log; Manager still denied DH-only actions (claim) even on an escalated case.
+
+**Not yet handled — carried forward, not this phase's job:** `EVIDENCE_REVIEWED` still has no write site anywhere in Phases 8–11 despite being one of the five `AuditAction` values. Explicitly Phase 14's responsibility per the plan doc ("confirming each value is actually written where the spec says it should be"), not patched in sideways here.
+

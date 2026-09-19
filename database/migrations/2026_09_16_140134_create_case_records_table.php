@@ -29,6 +29,7 @@ return new class extends Migration
             $table->boolean('concerns_department_head')->default(false);
             $table->text('resolution_summary')->nullable();
             $table->timestamp('resolved_at')->nullable();
+            $table->timestamp('escalated_at')->nullable()->after('resolved_at');
             $table->timestamps();
         });
     }

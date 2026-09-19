@@ -46,6 +46,7 @@ class CaseRecord extends Model implements AuthenticatableContract, JWTSubject
             'transaction_date' => 'date',
             'amount_involved' => 'decimal:2',
             'resolved_at' => 'datetime',
+            'escalated_at' => 'datetime',
             'concerns_department_head' => 'boolean',
         ];
     }

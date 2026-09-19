@@ -28,6 +28,7 @@ class CaseDetailResource extends JsonResource
             'resolutionSummary' => $this->resolution_summary,
             'createdAt' => $this->created_at,
             'resolvedAt' => $this->resolved_at,
+            'escalatedAt' => $this->escalated_at,
             'evidence' => EvidenceResource::collection($this->whenLoaded('evidence')),
             'aiSummary' => $this->ai_summary,
             'aiTimeline' => $this->ai_timeline,
