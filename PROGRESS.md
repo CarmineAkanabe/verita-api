@@ -573,3 +573,48 @@ that depend on a runtime-created `Case` and can't go through factories).
   Gmail-mirrored trigger points, so `IN_APP_AND_EMAIL` is the only value this code path
   ever writes. Matches the spec's framing (those four *are* what generates a notification
   at all), not a gap.
+
+## Phase 13 — Manager Analytics (Generate User Engagement Report) ✅ Complete
+
+**Delivered:**
+- `AnalyticsService::generateUserEngagementReport()` — three straight DB aggregates, no
+  AI, no Repository layer (Global Conventions reserve Repository for `Cache::`/`Redis::`
+  ownership specifically; this is a plain query against the Model):
+  - `caseVolumeByDepartment` — `Department::withCount('cases')`, mapped to
+    `{department, count}`.
+  - `averageResolutionDays` — `AVG(EXTRACT(EPOCH FROM (resolved_at - created_at)) / 86400)`
+    over cases where `resolved_at` is set; overall figure, not per-department, matching
+    the plan doc's singular wording. Returns `null` (not `0.0`) when nothing's resolved
+    yet — a fresh seed shouldn't misreport as "resolved instantly."
+  - `categoryBreakdownOverTime` — grouped by calendar month (`to_char(created_at, 'YYYY-MM')`)
+    × `category`. Only `FRAUD` will ever appear given current scope, but the query itself
+    doesn't hardcode that — Harassment/Security/OTHER fall out for free if ever built.
+- `UserEngagementReportController` — single-action/invokable, matches Phase 11's
+  `CaseReporterEscalationController` precedent for a one-coherent-action endpoint.
+- `GET /reports/user-engagement`, `role:MANAGER` middleware — no Policy needed, same
+  role-level-not-instance-level precedent as Phases 3/4/10.
+- **No dedicated `JsonResource`** — the Service already returns a hand-built aggregate
+  array; a Resource would just pass it through unchanged. Wrapped manually under `data`
+  to match the shape every other endpoint's tests assume. Same "not worth wrapping" call
+  as Phase 7/11's Request/DTO skips.
+- **No caching added** — dataset's small for a defense demo, query is cheap. Revisit only
+  if this becomes a real cost.
+- Pest coverage (`AnalyticsTest`): non-Manager forbidden; case volume + average resolution
+  match hand-computed figures against seeded data; `null` average when nothing's resolved;
+  category/month breakdown matches hand-computed counts.
+
+**Corrections made before this phase closed:**
+- **`assertJsonPath('data.averageResolutionDays', 3.0)` failed with "3 is identical to
+  3.0" despite the Service correctly computing `3.0`.** Not a logic bug — PHP's
+  `json_encode()` drops the decimal point on any whole-number float unless
+  `JSON_PRESERVE_ZERO_FRACTION` is passed, so `3.0` went over the wire as `3`; the test's
+  `assertJsonPath()` does a strict `===` compare, and `json_decode('3')` comes back an
+  `int`. Not actually a problem for the real consumer — JSON/JS have no int/float
+  distinction, Vue renders `3` and `3.0` identically — but worth fixing anyway so the
+  field doesn't silently change shape (`3` some days, `4.2` others) if the frontend ever
+  formats it as always-one-decimal text. Fixed by passing the flag on this one response
+  only (`response()->json($data, 200, [], JSON_PRESERVE_ZERO_FRACTION)`), not globally —
+  nothing else in the app currently emits a bare computed float.
+
+**Not yet handled:** nothing flagged this phase — assumption about `Department::cases()`
+already existing from Phase 1 held with no changes needed.

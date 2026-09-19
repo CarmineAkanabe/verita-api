@@ -14,6 +14,7 @@ use App\Http\Controllers\V1\DepartmentHeadController;
 use App\Http\Controllers\V1\EvidenceDownloadController;
 use App\Http\Controllers\V1\MessageController;
 use App\Http\Controllers\V1\NotificationController;
+use App\Http\Controllers\V1\UserEngagementReportController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -104,4 +105,7 @@ Route::prefix('v1')->group(function () {
     // Notifications
     Route::get('notifications', [NotificationController::class, 'index']);
     Route::patch('notifications/{notification}', [NotificationController::class, 'markAsRead']);
+
+    // Manager User Engagement Report
+    Route::middleware('role:MANAGER')->get('reports/user-engagement', UserEngagementReportController::class);
 });
