@@ -23,7 +23,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withBroadcasting(
         __DIR__ . '/../routes/channels.php',
-        ['middleware' => ['auth:api']], // adjust guard once case-api exists in Phase 7
+        ['middleware' => ['auth:api,case-api']], // adjust guard once case-api exists in Phase 7
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([

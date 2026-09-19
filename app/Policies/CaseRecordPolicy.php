@@ -40,4 +40,10 @@ class CaseRecordPolicy
         return $user->role === Role::DEPARTMENT_HEAD
             && $case->assigned_to === $user->id;
     }
+
+    public function communicate(User $user, CaseRecord $case): bool
+    {
+        return $user->role === Role::DEPARTMENT_HEAD
+            && $case->assigned_to === $user->id;
+    }
 }

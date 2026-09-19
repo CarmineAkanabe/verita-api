@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['case_id', 'sender_type', 'content', 'sent_at'])]
+#[Fillable(['case_record_id', 'sender_type', 'content', 'sent_at'])]
 class Message extends Model
 {
     use HasFactory, HasUuids;

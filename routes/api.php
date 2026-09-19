@@ -5,10 +5,12 @@ use App\Http\Controllers\V1\AuthController;
 use App\Http\Controllers\V1\CaseAuthController;
 use App\Http\Controllers\V1\CaseDashboardController;
 use App\Http\Controllers\V1\CaseManagementController;
+use App\Http\Controllers\V1\CaseReporterMessageController;
 use App\Http\Controllers\V1\CaseSubmissionController;
 use App\Http\Controllers\V1\DepartmentController;
 use App\Http\Controllers\V1\DepartmentHeadController;
 use App\Http\Controllers\V1\EvidenceDownloadController;
+use App\Http\Controllers\V1\MessageController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -31,12 +33,19 @@ Route::prefix('v1')->group(function () {
     // Pin Authentication
     Route::middleware('throttle:pin-verify')
         ->post('cases/{caseId}/verify-pin', [CaseAuthController::class, 'verifyPin']);
-    // Tracking Case
+
+    // Case Reporter activities
     Route::middleware('auth:case-api')->group(function () {
+        // Tracking Case
         Route::get('cases/me', [CaseDashboardController::class, 'show']);
         Route::post('cases/me/evidence', [CaseDashboardController::class, 'addEvidence']);
         Route::get('cases/me/evidence/{evidence}', [EvidenceDownloadController::class, 'show'])
             ->name('cases.me.evidence.show');
+        // Messaging feature
+        Route::middleware('auth:case-api')->prefix('cases/me')->group(function () {
+            Route::get('/messages', [CaseReporterMessageController::class, 'index']);
+            Route::post('/messages', [CaseReporterMessageController::class, 'store']);
+        });
     });
 
     /**
@@ -67,12 +76,17 @@ Route::prefix('v1')->group(function () {
         Route::apiResource('department-heads', DepartmentHeadController::class)->except(['show']);
     });
 
-    // Department Head Case Management
+    // Department Head Activities
     Route::middleware(['auth:api', 'role:DEPARTMENT_HEAD'])->prefix('cases')->group(function () {
+        // Case Management
         Route::get('/', [CaseManagementController::class, 'index']);
         Route::get('/{case}', [CaseManagementController::class, 'show']);
         Route::post('/{case}/claim', [CaseManagementController::class, 'claim']);
         Route::patch('/{case}/status', [CaseManagementController::class, 'updateStatus']);
         Route::get('/{case}/evidence/{evidence}', [CaseManagementController::class, 'evidence']);
+
+        // Messaging
+        Route::get('/{case}/messages', [MessageController::class, 'index']);
+        Route::post('/{case}/messages', [MessageController::class, 'store']);
     });
 });
