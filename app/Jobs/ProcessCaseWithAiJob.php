@@ -53,6 +53,7 @@ class ProcessCaseWithAiJob implements ShouldQueue
                     'clarifications' => $analysis->clarifications,
                 ],
                 'status' => CaseStatus::AWAITING_REVIEW,
+                'ai_processing_failed' => false, // clears a stale flag on a successful reprocess
             ]);
 
             $auditLog->log(
@@ -69,12 +70,25 @@ class ProcessCaseWithAiJob implements ShouldQueue
 
     public function failed(?Throwable $exception): void
     {
-        // Retries exhausted. No AuditLog write — AuditAction has no
-        // failure-shaped value, wasn't going to invent one unasked. Case
-        // just sits at AI_PROCESSING; recovery is AiProcessingService::dispatch(),
-        // triggered manually, not automatically. Open flag, not a decision:
-        // is a log line enough ops visibility before defense, or do you want
-        // this surfaced somewhere a Manager actually sees it?
         report($exception);
+
+        $previousStatus = $this->case->status;
+
+        DB::transaction(function () use ($previousStatus) {
+            $this->case->update([
+                'status' => CaseStatus::AWAITING_REVIEW,
+                'ai_processing_failed' => true,
+            ]);
+
+            app(AuditLogService::class)->log(
+                case: $this->case,
+                actorType: AuditActorType::SYSTEM,
+                action: AuditAction::STATUS_CHANGED,
+                previousValue: $previousStatus->value,
+                newValue: CaseStatus::AWAITING_REVIEW->value,
+            );
+        });
+
+        CaseReadyForReview::dispatch($this->case);
     }
 }

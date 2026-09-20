@@ -710,3 +710,130 @@ already existing from Phase 1 held with no changes needed.
   optional, your call whether it's worth doing now or folding into Phase 15's demo seeder.
 - `ProcessCaseWithAiJob::failed()`'s open flag from Phase 6 remains unresolved: no audit
   write on exhausted retries, case just sits at `AI_PROCESSING`. Untouched this phase.
+
+## Phase 15 — Polish & Demo Readiness ✅ Complete
+
+**Delivered:**
+- **Rate-limiting check:** all three limiters from Phase 0 (`login`, `case-submit`,
+  `pin-verify`) confirmed actually attached to their routes in `routes/api.php` — no
+  gaps found, no changes made.
+- **`demo:reset` command — built from scratch.** Phase 1's PROGRESS.md entry claiming a
+  skeleton was scaffolded was wrong; nothing existed. `app/Console/Commands/DemoReset.php`,
+  signature `demo:reset {--force}`, confirmation prompt unless `--force`. Internally calls
+  `migrate:fresh --seed` rather than a hand-rolled truncate — chosen over manual
+  per-table truncation to avoid maintaining FK-order-dependent truncate logic by hand;
+  guarantees a byte-identical schema+data slate every run. **Makes zero Gemini/AI calls**
+  — every seeded case's `aiSummary`/`aiTimeline`/`aiFindings` is hand-written in the
+  seeder, so the command works offline and instantly, which matters for a "run it minutes
+  before walking on stage" command.
+- **`DatabaseSeeder` expanded** from 1 case to 5, spanning `SUBMITTED`, `AWAITING_REVIEW`,
+  `UNDER_INVESTIGATION`, `RESOLVED`, `DISMISSED`. Deliberately **no** conflict-of-interest
+  or escalated case seeded — per master spec §18, both are explained conceptually at
+  defense, not live-demoed, so seeding them would be dataset noise.
+- **`CaseRecordFactory::dismissed()` state added**, mirroring the existing `resolved()`.
+- **README.md written** — env setup (Postgres/Redis/Reverb/JWT/Gmail SMTP vars), the
+  3-process runtime requirement (`serve` + `queue:work` + `reverb:start`, all required
+  simultaneously — missing `queue:work` is flagged as the most common "nothing's
+  happening" failure mode), rate-limit reference table, and the Gmail `+alias` trick for
+  simulating multiple recipient inboxes from one real Gmail account during a demo.
+- **Full Pest suite run: 73/73 green** before this phase's own new tests were added.
+
+**Corrections made / findings this phase:**
+- **Real RFC 9457 bug found via live curl, not by inspection.** The `bootstrap/app.php`
+  renderer registered against `Illuminate\Auth\Access\AuthorizationException` was dead
+  code for every Policy-based denial (`$this->authorize('view', $case)` — Phase 11's
+  escalation-access check, Phase 14's `evidence()`). Laravel's base exception handler
+  normalizes a Policy-thrown `AuthorizationException` into Symfony's
+  `AccessDeniedHttpException` *before* app-registered renderers run, so the dedicated
+  403 block never fired; every Policy denial was instead falling through to the
+  catch-all `Throwable` renderer — still a correct 403 status, but with `"title":"Error"`
+  instead of `"title":"Forbidden"`, an inconsistent shape vs. the `abort(403)`
+  (`EnsureRole`) path. Confirmed live: cross-department Department Head hitting
+  `GET /cases/{case}/evidence/{evidence}` returned
+  `{"title":"Error","status":403,...}` before the fix.
+  - **Fix:** swapped the renderer's type hint from `AuthorizationException` to
+    `Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException` in
+    `bootstrap/app.php`. Re-verified live — now returns `"title":"Forbidden"`.
+- `CaseAlreadyClaimedException` (409, extends `ConflictHttpException`) — confirmed
+  correctly handled by the existing catch-all via `HttpExceptionInterface`; no dedicated
+  renderer needed, same pattern as `abort(403)`.
+- `GeminiResponseException` (plain `RuntimeException`, no HTTP mapping) — confirmed it
+  carries no HTTP interface; if it's ever thrown outside the async AI-processing Job
+  context, it correctly 500s via the catch-all with the message hidden outside debug
+  mode. No change needed.
+- **New test coverage gap identified and closed:** none of the existing 73 tests
+  asserted on error-*body shape* (only status codes), which is exactly how the
+  `AccessDeniedHttpException` bug went unnoticed. Added:
+  - `tests/Feature/ExceptionEnvelopeTest.php` — asserts a Policy-denied request returns
+    the `"Forbidden"` envelope shape, not the catch-all's `"Error"` shape. Feature, not
+    Unit, since it needs the real Policy + routing + exception-handler pipeline to mean
+    anything.
+  - `tests/Unit/ExceptionsTest.php` — isolated construction tests for both custom
+    exceptions (status code + message for `CaseAlreadyClaimedException`; confirms
+    `GeminiResponseException` implements no `HttpExceptionInterface`). Deliberately kept
+    out of `tests/Unit` as originally suggested for the Policy-envelope test — `tests/Pest.php`
+    scopes `RefreshDatabase` to Feature tests only, so a Unit test using
+    `CaseRecord::factory()->create()` would write to a real, non-refreshed DB and risk
+    unique-constraint flakes on rerun (`Department.name`, `User.email`). Only genuinely
+    DB-free assertions belong in Unit.
+- **Suite total: 73 → 79, all green.**
+
+**Also delivered this phase — Phase 6's open AI-failure-fallback gap, reopened and closed:**
+
+Phase 6 had left `ProcessCaseWithAiJob::failed()` as a bare `report($exception)` — on
+exhausted retries the case just sat at `AI_PROCESSING` forever, invisible to every
+Department Head (`WHERE status = 'AWAITING_REVIEW'` never matches it), no audit trail.
+Flagged again at the top of this phase and fixed properly rather than left for another
+round:
+
+- **Design decision (explicit, not a default):** fail *open*, not silent. On exhausted
+  retries the case now moves to `AWAITING_REVIEW` anyway — with no AI summary/timeline/
+  findings — so a Department Head still gets it in their normal queue and reviews it
+  manually. Chosen over the more conservative "notify Manager only, keep it out of the
+  DH queue" alternative because it matches the master spec's actual fallback philosophy:
+  the AI must never block the human process.
+- **New column: `case_records.ai_processing_failed` (boolean, default `false`)** —
+  needed because `AWAITING_REVIEW` had implicitly meant "has a populated AI Review
+  section" everywhere else in the app (both Resources, the addendum's dashboard-
+  rendering logic); fail-open breaks that assumption, so this flag disambiguates
+  "processing pending" from "processing failed, human-only." Another implementation-level
+  class-model delta beyond the master spec, same category as `aiFindings`/
+  `concernsDepartmentHead`. Added to `CaseRecord::$fillable`.
+- **`ProcessCaseWithAiJob::failed()` rewritten:** transitions `AI_PROCESSING →
+  AWAITING_REVIEW`, sets the flag, writes an `AuditLog` entry, still fires
+  `CaseReadyForReview`.
+  - `actorType: SYSTEM`, not `AI` — the AI produced nothing; the system forced the
+    fallback transition. Matches the existing `SYSTEM` usage on `ESCALATED` and
+    Manager-side `EVIDENCE_REVIEWED`.
+  - `action: STATUS_CHANGED`, not a new enum value — deliberately reused rather than
+    inventing a failure-shaped `AuditAction`, per the original code comment's own
+    caution against doing that unasked. `AI_PROCESSED` would overclaim the AI did
+    something.
+  - `CaseReadyForReview` still dispatches regardless of cause — Phase 12's notification
+    trigger is keyed on the `AI_PROCESSING → AWAITING_REVIEW` transition itself, not on
+    *why* it happened.
+  - Resolved manually via `app(AuditLogService::class)`, not method-injected — Laravel's
+    job `failed()` doesn't support parameter injection the way `handle()` does.
+- **`ProcessCaseWithAiJob::handle()` — one field added to the existing success-path
+  update:** `'ai_processing_failed' => false`. Needed so a case that failed once, got
+  manually reprocessed via `AiProcessingService::dispatch()`, and succeeded on retry
+  doesn't keep showing a stale failed flag.
+- **`CaseDetailResource.php`** (staff view) — added `aiProcessingFailed` unconditionally;
+  this view already shows everything regardless of status.
+- **`CaseReporterDashboardResource.php`** — `$aiReady` now also excludes
+  `ai_processing_failed` cases (same "nothing to show yet" `when()` treatment as a
+  genuinely-pending case, rather than emitting `aiSummary: null` unexplained);
+  `aiProcessingFailed` itself exposed unconditionally so the frontend can distinguish
+  "still processing" from "processing failed, human's on it."
+- **`CaseDashboardController::addEvidence()` — no changes needed.** It already re-
+  dispatches AI processing on new evidence; whichever way that reprocess resolves,
+  `handle()`/`failed()` now correctly set the flag either way.
+- **Tests added to `ProcessCaseWithAiJobTest`** (suite: 75 → 79):
+  - exhausted-retries fallback — asserts `AWAITING_REVIEW` + flag `true` + null AI
+    fields + correct `AuditLog` row (`STATUS_CHANGED`/`SYSTEM`) + `CaseReadyForReview`
+    fired.
+  - successful reprocess clears a previously-`true` flag — same `Http::fake`/
+    `fakeGeminiJson()` fixture pattern as the existing happy-path test, seeded with
+    `ai_processing_failed: true` beforehand to prove it flips back to `false`.
+
+**Not yet handled — flagged, not applied:**

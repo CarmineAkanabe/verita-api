@@ -33,6 +33,7 @@ class CaseDetailResource extends JsonResource
             'aiSummary' => $this->ai_summary,
             'aiTimeline' => $this->ai_timeline,
             'aiFindings' => $this->ai_findings,
+            'aiProcessingFailed' => $this->ai_processing_failed,
         ];
     }
 }

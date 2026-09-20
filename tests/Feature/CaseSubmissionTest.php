@@ -77,7 +77,7 @@ it('creates only one case when the same Idempotency-Key is replayed', function (
     $this->postJson('/api/v1/cases', $payload, ['Idempotency-Key' => $key])->assertCreated();
     $this->postJson('/api/v1/cases', $payload, ['Idempotency-Key' => $key])->assertCreated();
 
-    dump(CaseRecord::where('department_id', $department->id)->get(['id', 'status'])->toArray());
+    // dump(CaseRecord::where('department_id', $department->id)->get(['id', 'status'])->toArray());
     // Scope the count strictly to the department isolated in this specific test
     expect(CaseRecord::where('department_id', $department->id)->count())->toBe(1);
 });

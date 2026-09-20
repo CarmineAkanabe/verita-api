@@ -21,6 +21,7 @@ return new class extends Migration
             $table->decimal('amount_involved', 15, 2);
             $table->string('person_involved');
             $table->date('transaction_date');
+            $table->boolean('ai_processing_failed')->default(false);
             $table->text('ai_summary')->nullable();
             $table->json('ai_timeline')->nullable();
             $table->json('ai_findings')->nullable();

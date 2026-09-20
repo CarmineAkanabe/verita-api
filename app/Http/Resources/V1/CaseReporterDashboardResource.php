@@ -17,8 +17,8 @@ class CaseReporterDashboardResource extends JsonResource
     {
         $aiReady = ! in_array($this->status, [
             CaseStatus::SUBMITTED,
-            CaseStatus::AI_PROCESSING
-        ], true);
+            CaseStatus::AI_PROCESSING,
+        ], true) && ! $this->ai_processing_failed;
 
         return [
             'caseId' => $this->id,
@@ -29,6 +29,7 @@ class CaseReporterDashboardResource extends JsonResource
             'personInvolved' => $this->person_involved,
             'transactionDate' => $this->transaction_date,
             'evidence' => EvidenceResource::collection($this->whenLoaded('evidence')),
+            'aiProcessingFailed' => $this->ai_processing_failed,
             'aiSummary' => $this->when($aiReady, $this->ai_summary),
             'aiTimeline' => $this->when($aiReady, $this->ai_timeline),
             'aiFindings' => $this->when($aiReady, $this->ai_findings),

@@ -46,4 +46,13 @@ class CaseRecordFactory extends Factory
             'resolution_summary' => fake()->sentence(),
         ]);
     }
+
+    public function dismissed(): static
+    {
+        return $this->state(fn() => [
+            'status' => CaseStatus::DISMISSED,
+            'resolved_at' => now(),
+            'resolution_summary' => fake()->sentence(),
+        ]);
+    }
 }
