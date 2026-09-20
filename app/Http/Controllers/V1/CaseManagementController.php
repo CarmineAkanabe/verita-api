@@ -3,10 +3,14 @@
 namespace App\Http\Controllers\V1;
 
 use App\DTO\UpdateCaseStatusData;
+use App\Enums\AuditAction;
+use App\Enums\AuditActorType;
+use App\Enums\Role;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\V1\UpdateCaseStatusRequest;
 use App\Http\Resources\V1\CaseDetailResource;
 use App\Models\CaseRecord;
+use App\Services\AuditLogService;
 use App\Services\CaseManagementService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -39,10 +43,21 @@ class CaseManagementController extends Controller
         return new CaseDetailResource($this->service->updateStatus($case, $data));
     }
 
-    public function evidence(CaseRecord $case, string $evidence)
+    public function evidence(CaseRecord $case, string $evidence, AuditLogService $auditLog)
     {
         $this->authorize('view', $case);
         $file = $case->evidence()->findOrFail($evidence);
+
+        $auditLog->log(
+            case: $case,
+            actorType: auth('api')->user()->role === Role::DEPARTMENT_HEAD
+                ? AuditActorType::DEPARTMENT_HEAD
+                : AuditActorType::SYSTEM,
+            action: AuditAction::EVIDENCE_REVIEWED,
+            previousValue: null,
+            newValue: (string) $file->id,
+        );
+
         return Storage::disk('local')->response($file->file_path);
     }
 }

@@ -37,4 +37,13 @@ class CaseRecordFactory extends Factory
             'concerns_department_head' => false,
         ];
     }
+
+    public function resolved(): static
+    {
+        return $this->state(fn() => [
+            'status' => CaseStatus::RESOLVED,
+            'resolved_at' => now(),
+            'resolution_summary' => fake()->sentence(),
+        ]);
+    }
 }

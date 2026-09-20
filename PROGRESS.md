@@ -618,3 +618,95 @@ that depend on a runtime-created `Case` and can't go through factories).
 
 **Not yet handled:** nothing flagged this phase — assumption about `Department::cases()`
 already existing from Phase 1 held with no changes needed.
+
+## Phase 14 — AuditLog Completeness Pass ✅ Complete
+
+**Delivered:**
+- Confirmed correct, no code changes needed: `AI_PROCESSED` (Phase 6,
+  `ProcessCaseWithAiJob::handle()`), `ESCALATED` (Phase 11), `STATUS_CHANGED` (Phase 8).
+- New write site — `EVIDENCE_REVIEWED` was genuinely missing. Added to
+  `CaseManagementController::evidence()` (the staff-facing evidence view — the Case
+  Reporter's own `EvidenceDownloadController` route was not touched, different endpoint,
+  different actor):
+```php
+  public function evidence(CaseRecord $case, string $evidence, AuditLogService $auditLog)
+  {
+      $this->authorize('view', $case);
+      $file = $case->evidence()->findOrFail($evidence);
+
+      $auditLog->log(
+          case: $case,
+          actorType: auth('api')->user()->role === Role::DEPARTMENT_HEAD
+              ? AuditActorType::DEPARTMENT_HEAD
+              : AuditActorType::SYSTEM, // Manager viewing (post-escalation only) —
+                                         // AuditActorType has no MANAGER value,
+                                         // same gap/resolution as ESCALATED itself
+          action: AuditAction::EVIDENCE_REVIEWED,
+          previousValue: null,
+          newValue: (string) $file->id,
+      );
+
+      return Storage::disk('local')->response($file->file_path);
+  }
+```
+- `routes/api.php` restructured: the three separate Manager-only blocks (Departments,
+  Department Heads, Case Assignments) plus the report route merged into one shared
+  `auth:api` + `role:MANAGER` group; the accidentally double-nested `auth:case-api` group
+  under `cases/me` collapsed to one. Two real bugs fixed in the same pass, found while
+  reading the file, not part of this phase's original scope:
+  - `notifications` / `notifications/{notification}` had **no auth middleware at all** —
+    moved under the staff `auth:api` group.
+  - `reports/user-engagement` had `role:MANAGER` with no `auth:api` in front of it —
+    `EnsureRole` reading `$user->role` on an unauthenticated request throws rather than
+    cleanly 401ing.
+  - Incidental: `Route::get('/ping', [])` — empty array isn't a valid route action,
+    replaced with a trivial closure.
+- `AuditLoggingTest` — five Feature tests, one per `AuditAction` value, hitting real
+  endpoints (not direct Service calls) to prove the actual HTTP-triggered flow writes the
+  row.
+
+**Corrections made / findings (several wrong assumptions on my part this phase, each corrected against real code before being accepted):**
+- `MESSAGE_SENT`'s `newValue` is the **sender type's string value**
+  (`'DEPARTMENT_HEAD'`/etc.), not the message ID — deliberate Phase 9 design; message
+  content and ID are both intentionally excluded, the row signals "who sent something,"
+  not what or which one. Test corrected to match; no production code changed.
+- Confirmed `AuditActorType` has exactly three values (`AI` / `DEPARTMENT_HEAD` /
+  `SYSTEM`) — no `MANAGER`. `EVIDENCE_REVIEWED` (this phase) and `MESSAGE_SENT` (Phase 9,
+  pre-existing) both attribute the Case-Reporter-or-Manager side of their action to
+  `SYSTEM`, consistent with `ESCALATED`'s existing handling of the same gap.
+- `AuditLogService::log()`'s `previousValue` param is typed `?string` (nullable) but has
+  **no default value** — still required despite being nullable. Omitting it entirely is a
+  missing-argument fatal, not a silent null.
+- **`note` and `resolutionSummary` are two separate required fields on Update Case
+  Status**, not one field under two names — confirmed by two separate 422s, one per
+  field, when only one was sent. `note` is the addendum's mandatory-on-every-transition
+  field (`AuditLog.note`); `resolutionSummary` is the master spec's resolution/dismissal
+  field (`Case.resolutionSummary`, §9). Both required together when the new status is
+  `RESOLVED`/`DISMISSED`:
+```php
+  ->patchJson("/api/v1/cases/{$case->id}/status", [
+      'status' => 'RESOLVED',
+      'note' => 'Substantiated.',
+      'resolutionSummary' => 'Substantiated.',
+  ])
+```
+- `EVIDENCE_REVIEWED` test 500'd against real Flysystem — `Evidence::factory()` writes a
+  plausible `file_path` string with no file actually on disk; `Storage::response()` needs
+  real file metadata. Not a code bug; fixed with `Storage::fake('local')` plus writing
+  real bytes at the exact factory-assigned path:
+```php
+  Storage::fake('local');
+  $path = 'evidence/test-evidence.jpg';
+  Storage::disk('local')->put($path, 'fake-file-contents');
+  $evidence = Evidence::factory()->create(['case_record_id' => $case->id, 'file_path' => $path]);
+```
+
+**Not yet handled — flagged, not applied:**
+- Whether Phase 7's own evidence-serving tests already handle this same fake-file gap, or
+  have been passing without ever actually exercising `Storage::response()` on a
+  factory-made row — worth a quick check before Phase 15's full-suite confidence pass.
+- `CaseRecordFactory::resolved()` state suggested (bundling `status`/`resolved_at`/
+  `resolution_summary` together for realistic resolved-case fixtures) — not added,
+  optional, your call whether it's worth doing now or folding into Phase 15's demo seeder.
+- `ProcessCaseWithAiJob::failed()`'s open flag from Phase 6 remains unresolved: no audit
+  write on exhausted retries, case just sits at `AI_PROCESSING`. Untouched this phase.
