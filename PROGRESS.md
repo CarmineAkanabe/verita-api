@@ -702,6 +702,40 @@ already existing from Phase 1 held with no changes needed.
 ```
 
 **Not yet handled — flagged, not applied:**
+
+---
+
+## Corrections — Repository Audit (2026-09-20)
+
+This audit treats the running route table, middleware, requests, resources, policies,
+and services as the consumer contract. The following earlier progress statements do
+not match the current implementation:
+
+- **Phase 0 — JSON enforcement:** `EnforceJson` exists but is not registered in the
+  API middleware group (its alias is commented out in `bootstrap/app.php`). Clients
+  should send `Accept: application/json`; JSON rendering otherwise relies on Laravel's
+  request negotiation / exception configuration.
+- **Phase 0 / README — rate limits:** the active limiters are **50/minute** for staff
+  login, **30/minute** for case submission, and **10/minute** for PIN verification,
+  keyed by IP. Earlier 5/minute and 3/minute figures are stale.
+- **Phase 6 — submission dispatch:** `CaseSubmissionService` currently changes the new
+  case to `AI_PROCESSING` and dispatches `ProcessCaseWithAiJob` directly. It does not
+  call `AiProcessingService::dispatch()` as the Phase 6 retrofit note states.
+- **Phase 8 — binding/policy wording:** the implementation uses implicit `{case}`
+  binding and explicitly registers `CaseRecordPolicy`; there is no explicit
+  `Route::model('case', CaseRecord::class)` or `CasePolicy` class in the current source.
+- **Phase 11 — escalation audit value:** the `ESCALATED` audit row records the literal
+  `new_value` `ESCALATED`, not the escalation timestamp.
+- **Phase 12 — presence status:** `AuthService` currently does not update
+  `presence_status` during login or logout. The status therefore has no runtime writer
+  in the checked source.
+- **Phase 8 / 14 — staff evidence URLs:** `EvidenceResource` always generates the
+  case-reporter `/cases/me/evidence/{id}` URL. In a staff case response that URL cannot
+  be used with a staff token; staff consumers must call
+  `/cases/{caseId}/evidence/{evidenceId}` instead.
+
+Consumer-facing details, including these corrections, are maintained in
+`API-DOCUMENTATION.md`.
 - Whether Phase 7's own evidence-serving tests already handle this same fake-file gap, or
   have been passing without ever actually exercising `Storage::response()` on a
   factory-made row — worth a quick check before Phase 15's full-suite confidence pass.
