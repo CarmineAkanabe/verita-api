@@ -23,7 +23,7 @@ class CaseRecordPolicy
     public function view(User $user, CaseRecord $case): bool
     {
         if ($user->role === Role::MANAGER) {
-            return $case->escalated_at !== null;
+            return true;
         }
 
         if ($user->role !== Role::DEPARTMENT_HEAD) {

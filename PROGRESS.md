@@ -871,3 +871,38 @@ round:
     `ai_processing_failed: true` beforehand to prove it flips back to `false`.
 
 **Not yet handled — flagged, not applied:**
+
+---
+
+## Phase 13 — Mailer Overhaul, AI Hardening, and Audit Log Endpoints (2026-09-21)
+
+### 1. Email Mailer Deliverability & Aesthetic Polish
+- **Anti-Spam Optimization**:
+  - Raw UUID subject lines replaced with branded corporate subjects: `[Verita] Case Assigned: #{id} ({category}) — Action Required`.
+  - Added RFC-compliant headers: `X-Entity-Ref-ID`, `X-Auto-Response-Suppress: All`.
+  - Added recipient salutations, context paragraphs, structured detail panels, and plain-text fallback links to prevent Bayesian spam penalties.
+- **Corporate Styling**:
+  - Updated `resources/views/vendor/mail/html/header.blade.php`: Wrapped logo in dark navy (`#22293A`) pill container with warm amber badge, eliminating black-box rendering artifacts in email clients.
+  - Theme colors in `default.css`: Canvas `#F7F8FA`, creamy card `#FFFDF9`, warm border `#E2D5C3`, button orange `#A2561B`.
+  - Upgraded Blade templates for all 4 notifications: `case-assigned`, `case-ready-for-review`, `case-outcome`, `new-message`.
+- **URL Configuration**:
+  - Synchronized `FRONTEND_URL=http://localhost:5173` across `.env` and `config/app.php`. Corrected staff email links to target `/app/cases/{id}` and `/app/cases/{id}/chat`.
+
+### 2. Gemini AI Analysis Hardening
+- Swapped model to `gemini-2.5-flash` for increased response speed and reliability.
+- Structured findings: extracted factual contradictions and risk indicators into array payloads.
+- Generated chronological timeline events from narrative descriptions.
+
+### 3. Real-Time Presence & Broadcast Fixes
+- Configured Reverb WebSocket channel `case.{caseId}` for live asymmetric communication.
+- Implemented presence state broadcasting and authorization verification at `POST /broadcasting/auth`.
+
+### 4. Audit Log Endpoints Implementation
+- Created `app/Http/Resources/V1/AuditLogResource.php`: Transforms `AuditLog` Eloquent models to JSON with camelCase fields (`id`, `caseRecordId`, `actorType`, `action`, `previousValue`, `newValue`, `note`, `loggedAt`).
+- Updated `CaseManagementController.php`:
+  - `auditLogs(CaseRecord $case)`: Returns chronological case history ordered by `logged_at desc`, authorized via `$this->authorize('view', $case)`.
+  - `allAuditLogs(Request $request)`: Returns scoped audit records across cases accessible to the caller.
+- Registered endpoints in `routes/api.php`:
+  - `GET /api/v1/cases/{case}/audit-logs`
+  - `GET /api/v1/audit-logs`
+- Verified live response with 29+ existing database audit records.

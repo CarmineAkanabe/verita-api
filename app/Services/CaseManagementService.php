@@ -6,6 +6,7 @@ use App\DTO\UpdateCaseStatusData;
 use App\Enums\AuditAction;
 use App\Enums\AuditActorType;
 use App\Enums\CaseStatus;
+use App\Enums\Role;
 use App\Events\CaseResolved;
 use App\Exceptions\CaseAlreadyClaimedException;
 use App\Models\CaseRecord;
@@ -16,12 +17,24 @@ class CaseManagementService
 {
     public function __construct(private readonly AuditLogService $auditLog) {}
 
-    public function queueFor(User $departmentHead)
+    public function queueFor(User $user)
     {
+        if ($user->role === Role::MANAGER) {
+            return CaseRecord::query()
+                ->orderByDesc('created_at')
+                ->get();
+        }
+
         return CaseRecord::query()
-            ->where('department_id', $departmentHead->department_id)
-            ->where('status', CaseStatus::AWAITING_REVIEW)
-            ->where('concerns_department_head', false)
+            ->where(function ($query) use ($user) {
+                $query->where('assigned_to', $user->id)
+                    ->orWhere(function ($q) use ($user) {
+                        $q->where('department_id', $user->department_id)
+                            ->where('status', CaseStatus::AWAITING_REVIEW)
+                            ->where('concerns_department_head', false)
+                            ->whereNull('assigned_to');
+                    });
+            })
             ->orderBy('created_at')
             ->get();
     }

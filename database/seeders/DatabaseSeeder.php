@@ -34,7 +34,7 @@ class DatabaseSeeder extends Seeder
         });
 
         User::factory()->manager()->create([
-            'email' => 'manager@digimark.test',
+            'email' => 'manjuserge@gmail.com',
         ]);
 
         $swDept = $departments->first();
@@ -60,6 +60,16 @@ class DatabaseSeeder extends Seeder
             'previous_value' => 'AI_PROCESSING',
             'new_value' => 'AWAITING_REVIEW',
         ]);
+
+        // Conflict-of-interest — appears in the Manager assignment queue.
+        $assignmentCase = CaseRecord::factory()->create([
+            'department_id' => $swDept->id,
+            'status' => CaseStatus::AWAITING_REVIEW,
+            'concerns_department_head' => true,
+            'ai_summary' => 'Reporter indicates the report concerns a Department Head.',
+            'ai_timeline' => ['2025-08-20: Report submitted for Manager assignment'],
+        ]);
+        Evidence::factory()->create(['case_record_id' => $assignmentCase->id]);
 
         // SUBMITTED — AI hasn't run yet, pending-state dashboard
         $submitted = CaseRecord::factory()->create(['department_id' => $swDept->id, 'status' => CaseStatus::SUBMITTED]);

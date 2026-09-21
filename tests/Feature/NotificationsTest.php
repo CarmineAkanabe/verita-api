@@ -30,6 +30,23 @@ it('notifies every department head in the department when a case is ready for re
     Mail::assertQueued(CaseReadyForReviewMail::class, 2);
 });
 
+it('renders notification mailables as HTML with the embedded Verita logo', function () {
+    $case = CaseRecord::factory()->create();
+    $message = Message::factory()->create(['case_record_id' => $case->id]);
+
+    foreach ([
+        new CaseReadyForReviewMail($case),
+        new CaseAssignedMail($case),
+        new CaseOutcomeMail($case, 'resolved'),
+        new NewMessageMail($message),
+    ] as $mailable) {
+        $mailable
+            ->assertSeeInHtml('Verita logo')
+            ->assertSeeInHtml('cid:')
+            ->assertDontSeeInHtml('&lt;table');
+    }
+});
+
 it('notifies the assigned department head on assignment', function () {
     Mail::fake();
     $head = User::factory()->departmentHead()->create();

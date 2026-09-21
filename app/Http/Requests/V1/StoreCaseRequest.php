@@ -22,6 +22,7 @@ class StoreCaseRequest extends FormRequest
      */
     public function rules(): array
     {
+
         return [
             'departmentId' => ['required', 'uuid', 'exists:departments,id'],
             'description' => ['required', 'string'],

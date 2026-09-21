@@ -29,7 +29,7 @@ class EnsureIdempotency
 
         // 1. Check Cache
         if ($cached = $this->repository->find($scopedKey)) {
-            dump("CACHE HIT SUCCESSFUL! Returning early."); // <-- DEBUG 1
+            // dump("CACHE HIT SUCCESSFUL! Returning early."); // <-- DEBUG 1
             return response()->json($cached['body'], $cached['status']);
         }
 
@@ -40,7 +40,7 @@ class EnsureIdempotency
         if ($response->getStatusCode() >= 200 && $response->getStatusCode() < 300) {
             $body = json_decode($response->getContent(), true) ?? [];
             $this->repository->store($scopedKey, $body, $response->getStatusCode());
-            dump("SAVED TO CACHE KEY: " . $scopedKey); // <-- DEBUG 2
+            // dump("SAVED TO CACHE KEY: " . $scopedKey); // <-- DEBUG 2
         }
 
         return $response;

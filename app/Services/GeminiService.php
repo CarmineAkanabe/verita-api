@@ -15,7 +15,7 @@ class GeminiService
             ->connectTimeout(15)
             ->retry(3, 1000)
             ->withQueryParameters([
-                'key' => config('services.gemini.api_key'),
+                'key' => config('services.gemini.key'),
             ])
             ->post(
                 'https://generativelanguage.googleapis.com/v1beta/models/'
@@ -43,7 +43,7 @@ class GeminiService
             $parts[] = [
                 'inline_data' => [
                     // read the real mime off disk rather than trusting file_type
-                    // (IMAGE/PDF only) — that enum can't distinguish jpg vs png.
+                    // (IMAGE/PDF only) - that enum can't distinguish jpg vs png.
                     'mime_type' => Storage::disk('local')->mimeType($evidence->file_path),
                     'data' => base64_encode(Storage::disk('local')->get($evidence->file_path)),
                 ],
@@ -51,12 +51,11 @@ class GeminiService
         }
 
         $response = Http::timeout(60)
+            ->retry(3, 1500)
             ->post($this->endpoint('generateContent'), [
                 'contents' => [['parts' => $parts]],
                 'generationConfig' => [
                     'responseMimeType' => 'application/json',
-                    // Phase 0 flagged 137 thinking tokens on a 2-word test answer —
-                    // this is that flag getting acted on.
                     'thinkingConfig' => ['thinkingBudget' => 0],
                 ],
             ])
@@ -71,19 +70,36 @@ class GeminiService
     private function buildCasePrompt(CaseRecord $case): string
     {
         return <<<PROMPT
-        You are structuring a workplace fraud report for internal review.
-        Do not judge guilt, assign blame, or produce a severity, credibility,
-        or risk score — report facts, gaps, and inconsistencies only.
+You are an objective compliance assistant structuring an internal workplace misconduct case for human investigator review.
+Analyze all provided statements, details, and attached documents/evidence.
+Do not judge guilt, assign blame, or produce a severity or risk rating — report objective facts, chronological milestones, documentation gaps, and contradictions only.
 
-        Incident description: {$case->description}
-        Purpose of transaction: {$case->purpose_of_transaction}
-        Amount involved: {$case->amount_involved}
-        Person involved: {$case->person_involved}
-        Transaction date: {$case->transaction_date}
+Incident Details:
+- Description: {$case->description}
+- Purpose of transaction: {$case->purpose_of_transaction}
+- Amount involved: {$case->amount_involved}
+- Person involved: {$case->person_involved}
+- Transaction date: {$case->transaction_date}
 
-        Respond with strict JSON only, matching this shape:
-        {"summary": string, "timeline": array, "completeness": array, "consistency": array, "clarifications": array}
-        PROMPT;
+Instructions:
+1. "summary": A clear, multi-sentence factual summary of the incident and what transpired according to the statements and evidence.
+2. "timeline": Extract or infer a chronological list of events and milestones based on the statements, receipts, and chat dates. Each item MUST be an object:
+   {"date": "YYYY-MM-DD", "time": "HH:MM", "event": "Short title", "description": "1-2 sentence description"}
+3. "completeness": Array of specific missing documents, unverified identities, or proof gaps that the investigator should obtain.
+4. "consistency": Array of specific factual discrepancies, mismatched names, currency differences, or date conflicts found between the report description and attached evidence.
+5. "clarifications": Array of targeted, high-priority questions the investigator should ask during consultation.
+
+Respond with strict JSON only, matching this shape:
+{
+  "summary": "string",
+  "timeline": [
+    {"date": "YYYY-MM-DD", "time": "string", "event": "string", "description": "string"}
+  ],
+  "completeness": ["string"],
+  "consistency": ["string"],
+  "clarifications": ["string"]
+}
+PROMPT;
     }
 
     private function endpoint(string $action): string

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\DTO\AssignCaseData;
+use App\Enums\CaseStatus;
 use App\Events\CaseAssigned;
 use App\Models\CaseRecord;
 
@@ -21,8 +22,8 @@ class CaseAssignmentService
     public function awaitingAssignment()
     {
         return CaseRecord::query()
-            ->where('concerns_department_head', true)
             ->whereNull('assigned_to')
+            ->where('status', CaseStatus::AWAITING_REVIEW)
             ->orderBy('created_at')
             ->get();
     }

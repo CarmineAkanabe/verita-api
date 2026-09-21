@@ -12,9 +12,21 @@ Broadcast::channel('case.{caseId}', function ($user, string $caseId) {
 
     if ($user instanceof User) {
         $case = CaseRecord::find($caseId);
-        return $case !== null
-            && $user->role === Role::DEPARTMENT_HEAD
-            && $case->assigned_to === $user->id;
+        if ($case === null) {
+            return false;
+        }
+
+        if ($user->role === Role::MANAGER) {
+            return true;
+        }
+
+        if ($user->role === Role::DEPARTMENT_HEAD && $case->assigned_to === $user->id) {
+            if ($user->presence_status !== \App\Enums\PresenceStatus::ONLINE) {
+                $user->presence_status = \App\Enums\PresenceStatus::ONLINE;
+                $user->save();
+            }
+            return true;
+        }
     }
 
     return false;

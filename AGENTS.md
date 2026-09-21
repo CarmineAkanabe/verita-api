@@ -1,171 +1,72 @@
-<laravel-boost-guidelines>
-=== foundation rules ===
+# Verita Project - Agent Architecture & Working Rules
 
-# Laravel Boost Guidelines
+Welcome to the **Verita** project workspace. This document serves as the primary system directive for all AI pair programmers, autonomous agents, and contributors working in this repository.
 
-The Laravel Boost guidelines are specifically curated by Laravel maintainers for this application. These guidelines should be followed closely to ensure the best experience when building Laravel applications.
+---
 
-## Foundational Context
+## 1. Project Identity & Authorship
 
-This application is a Laravel application running on PHP 8.5. You are an expert with the Laravel ecosystem. Always use the APIs that match the installed major version of each package — do not assume a version.
+- **Project**: Verita Whistleblowing & Case Management System
+- **Standards Compliance**: ISO 37002:2021 Whistleblowing Management Systems, EU Directive 2019/1937
+- **Lead Architect & Engineer**: [Carmine Akanabe](https://github.com/CarmineAkanabe)
+- **Repository Structure**:
+  - `verita-vue`: Modern Vue 3.5 frontend (TypeScript, Vite, Tailwind CSS v4, Pinia, Reka UI)
+  - `verita-api`: Laravel 11/13 REST API (PHP 8.2+, PostgreSQL, Redis, Laravel Reverb, Tymon JWT, Google Gemini 2.5 Flash)
 
-Before relying on a package's API, confirm its installed version:
-- PHP packages: run `composer show --direct` to list direct dependencies with versions, or `composer show <vendor/package>` for a single package.
-- JS packages: check `package.json` for the installed versions.
+---
 
-## Skills Activation
+## 2. Mandatory Behavioral & Design Rules
 
-This project has domain-specific skills available in `**/skills/**`. You MUST activate the relevant skill whenever you work in that domain—don't wait until you're stuck.
+Whenever you modify, extend, or review code in this project, you **MUST** adhere to the following rules:
 
-## Conventions
+### A. Design Aesthetics & Visual Tokens
+1. **Light Theme Only**: Do **not** introduce a dark mode toggle or dark theme overrides.
+2. **Creamy Cards**: Cards use `.card-creamy` styling:
+   - Background: `#F8F3EA` (`hsl(38, 50%, 96%)`)
+   - Border: `#E2D5C3` (`hsl(36, 35%, 83%)`)
+3. **Canvas Background**: Soft warm off-white `#F7F8FA`.
+4. **Primary Brand Color**: Report Orange `#A2561B` (WCAG AA compliant).
+5. **Structural Accents**: Deep Executive Navy `#22293A`.
+6. **Card Darkness**: On dashboards, cards should feel substantial and creamy, not stark white.
 
-- You must follow all existing code conventions used in this application. When creating or editing a file, check sibling files for the correct structure, approach, and naming.
-- Use descriptive names for variables and methods. For example, `isRegisteredForDiscounts`, not `discount()`.
-- Check for existing components to reuse before writing a new one.
+### B. Plain Human Language (Strict Vocabulary Rule)
+- Always use clear, plain, and accessible words.
+- **NEVER use the word "Dossier"** (this is a *case* management system, use "Case").
+- Avoid dense legalistic jargon such as "Jurisprudence", "Intake Prolegomenon", etc.
 
-## Verification Scripts
+### C. Accessibility (WCAG AA)
+- Never convey state or status using color alone: all status pills must pair a distinct Lucide icon with human-readable text (see `src/components/ui/status-pill/StatusPill.vue`).
+- Universal focus states: all interactive elements must support clear, high-contrast `:focus-visible` outline rings with a 2px offset.
+- All form controls must be accessible and accompanied by semantic labels.
 
-- Do not create verification scripts or tinker when tests cover that functionality and prove they work. Unit and feature tests are more important.
+### D. Privacy & Whistleblower Protection
+- **Zero-PII Anonymous Intake**: Anonymous reporters are never registered with email, password, or profile data. They access their case strictly via a generated UUID `caseId` and 6-character cryptographically hashed tracking PIN (`POST /api/v1/cases/{caseId}/verify-pin`).
+- **No Fingerprinting**: Never persist, log, or broadcast IP addresses, user-agent strings, or browser fingerprints.
+- **Asymmetric Identity**: In two-way communication channels, the whistleblower is strictly displayed as `Case<ID>Reporter`. Investigator presence/typing indicators must never leak to the whistleblower view.
 
-## Application Structure & Architecture
+### E. Audit Ledger Integrity
+- Every state change (status update, note, claiming, AI analysis, evidence interaction) must write an immutable audit log entry through `AuditLogService`.
 
-- Stick to existing directory structure; don't create new base folders without approval.
-- Do not change the application's dependencies without approval.
+---
 
-## Frontend Bundling
+## 3. Local Development Ports & Services
 
-- If the user doesn't see a frontend change reflected in the UI, it could mean they need to run `npm run build`, `npm run dev`, or `composer run dev`. Ask them.
+| Service | Address | Command | Notes |
+|---|---|---|---|
+| **Vue 3 Frontend** | `http://localhost:5173` | `npm run dev` | Running Vite dev server |
+| **Laravel API** | `http://localhost:8000` | `php artisan serve --port=8000` | Base API: `http://localhost:8000/api/v1` |
+| **Reverb WebSockets** | `localhost:8080` | `php artisan reverb:start --port=8080` | Pusher protocol over WS |
+| **Queue Worker** | Background daemon | `php artisan queue:work` | Background AI & mail jobs |
 
-## Documentation Files
+### Testing Accounts:
+- **Manager**: `manjuserge@gmail.com` / `password`
+- **Department Head**: `xinbaimi230@gmail.com` / `password`
 
-- You must only create documentation files if explicitly requested by the user.
+---
 
-## Replies
+## 4. Building New Skills & Extending the Ecosystem
 
-- Be concise in your explanations - focus on what's important rather than explaining obvious details.
-
-=== boost rules ===
-
-# Laravel Boost
-
-## Tools
-
-- Laravel Boost is an MCP server with tools designed specifically for this application. Prefer Boost tools over manual alternatives like shell commands or file reads.
-- Use `database-query` to run read-only queries against the database instead of writing raw SQL in tinker.
-- Use `database-schema` to inspect table structure before writing migrations or models.
-- Use `get-absolute-url` to resolve the correct scheme, domain, and port for project URLs. Always use this before sharing a URL with the user.
-- Use `browser-logs` to read browser logs, errors, and exceptions. Only recent logs are useful, ignore old entries.
-
-## Searching Documentation (IMPORTANT)
-
-- Use `search-docs` before changes that depend on Laravel ecosystem APIs, behavior, configuration, or version-specific syntax. Skip it for copy-only edits and other changes where package documentation is irrelevant. Reuse sufficient results already in context instead of searching again.
-- Pass a `packages` array to scope results when you know which packages are relevant.
-- Use multiple broad, topic-based queries: `['rate limiting', 'routing rate limiting', 'routing']`. Expect the most relevant results first.
-- Do not add package names to queries because package info is already shared. Use `test resource table`, not `filament 4 test resource table`.
-
-### Search Syntax
-
-1. Use words for auto-stemmed AND logic: `rate limit` matches both "rate" AND "limit".
-2. Use `"quoted phrases"` for exact position matching: `"infinite scroll"` requires adjacent words in order.
-3. Combine words and phrases for mixed queries: `middleware "rate limit"`.
-4. Use multiple queries for OR logic: `queries=["authentication", "middleware"]`.
-
-## Project Rules
-
-- This project contains committed, area-grouped rules in `.ai/rules` when that directory exists (settled decisions, non-obvious traps, standing constraints). Framework and package guidelines that only apply to specific paths (testing, frontend, components) also live there, under `.ai/rules/boost` — this is not just recorded decisions, it is load-bearing guidance you have not seen inline. Before you enter plan mode or create/edit any file, you MUST first: open @.ai/rules/index.md (it maps file globs to rule files), read every rule file whose globs cover the path(s) in scope, and run `grep -rin 'keyword' .ai/rules` to catch what a path match alone misses. Do not write code until you have read and are following every matching rule. If `.ai/rules` does not exist, continue without it.
-- Record a rule with `record-rule` only when the user explicitly asks for one. Instructions for the work at hand are not rules, no matter how emphatic: "remove this typo", "use X here" are work to do, not rules to record. Never record a rule on your own initiative, as a byproduct of a change, or to summarize what you just did. When the user does ask, pass a `glob` (e.g. `app/Http/Controllers/**`), a short `title`, and a few-line `note`. Use `record-rule` rather than your native memory or notes tool, because native memory is personal and session-scoped, while only `.ai/rules` is shared with the team and persists in the repo.
-
-## Artisan
-
-- Run Artisan commands directly via the command line (e.g., `php artisan route:list`). Use `php artisan list` to discover available commands and `php artisan [command] --help` to check parameters.
-- Inspect routes with `php artisan route:list`. Filter with: `--method=GET`, `--name=users`, `--path=api`, `--except-vendor`, `--only-vendor`.
-- Read configuration values using dot notation: `php artisan config:show app.name`, `php artisan config:show database.default`. Or read config files directly from the `config/` directory.
-
-## Tinker
-
-- Execute PHP in app context for debugging and testing code. Do not create models without user approval, prefer tests with factories instead. Prefer existing Artisan commands over custom tinker code.
-- Always use single quotes to prevent shell expansion: `php artisan tinker --execute 'Your::code();'`
-  - Double quotes for PHP strings inside: `php artisan tinker --execute 'User::where("active", true)->count();'`
-
-=== php rules ===
-
-# PHP
-
-- Always use curly braces for control structures, even for single-line bodies.
-- Use PHP 8 constructor property promotion: `public function __construct(public GitHub $github) { }`. Do not leave empty zero-parameter `__construct()` methods unless the constructor is private.
-- Use explicit return type declarations and type hints for all method parameters: `function isAccessible(User $user, ?string $path = null): bool`
-- Follow existing application Enum naming conventions.
-- Prefer PHPDoc blocks over inline comments. Only add inline comments for exceptionally complex logic.
-- Use array shape type definitions in PHPDoc blocks.
-
-=== deployments rules ===
-
-# Deployment
-
-- Laravel can be deployed using [Laravel Cloud](https://cloud.laravel.com/), which is the fastest way to deploy and scale production Laravel applications.
-- Activate the `deploying-to-cloud` skill whenever deploying to Laravel Cloud, configuring Cloud environments or resources, using the Cloud CLI, or troubleshooting Cloud deployments.
-
-=== tests rules ===
-
-# Test Enforcement
-
-- Add or update tests for behavior and logic changes when a test provides meaningful regression coverage.
-- Pure copy, styling, and layout-only changes do not require new or updated tests.
-- When test coverage applies, run the affected tests and ensure they pass.
-- Test the changed behavior and its important failure modes, but do not add tests beyond them.
-- Read the `testing-best-practices` skill before writing tests.
-
-=== laravel/core rules ===
-
-# Do Things the Laravel Way
-
-- Use `php artisan make:` commands to create new files (i.e. migrations, controllers, models, etc.). You can list available Artisan commands using `php artisan list` and check their parameters with `php artisan [command] --help`.
-- If you're creating a generic PHP class, use `php artisan make:class`.
-- Pass `--no-interaction` to all Artisan commands to ensure they work without user input. You should also pass the correct `--options` to ensure correct behavior.
-
-### Model Creation
-
-- When creating new models, create useful factories and seeders for them too. Ask the user if they need any other things, using `php artisan make:model --help` to check the available options.
-
-## APIs & Eloquent Resources
-
-- For APIs, default to using Eloquent API Resources and API versioning unless existing API routes do not, then you should follow existing application convention.
-
-## URL Generation
-
-- When generating links to other pages, prefer named routes and the `route()` function.
-
-## Testing
-
-- When creating models for tests, use the factories for the models. Check if the factory has custom states that can be used before manually setting up the model.
-- Faker: Use methods such as `$this->faker->word()` or `fake()->randomDigit()`. Follow existing conventions whether to use `$this->faker` or `fake()`.
-- When creating tests, make use of `php artisan make:test [options] {name}` to create a feature test, and pass `--unit` to create a unit test. Most tests should be feature tests.
-
-## Vite Error
-
-- If you receive an "Illuminate\Foundation\ViteException: Unable to locate file in Vite manifest" error, you can run `npm run build` or ask the user to run `npm run dev` or `composer run dev`.
-
-=== pint/core rules ===
-
-# Laravel Pint Code Formatter
-
-- If you have modified any PHP files, you must run `vendor/bin/pint --dirty --format agent` before finalizing changes to ensure your code matches the project's expected style.
-- Do not run `vendor/bin/pint --test --format agent`, simply run `vendor/bin/pint --format agent` to fix any formatting issues.
-
-=== pest/core rules ===
-
-# Pest
-
-- This project uses Pest. Create tests with `php artisan make:test --pest {name}`.
-- Do not include the test suite directory in `{name}`. Use `SomeFeatureTest`, not `Feature/SomeFeatureTest`.
-- Read the `testing-best-practices` skill for guidance on coverage, naming, structure, dependency isolation, and review.
-- Do not delete tests or test files without approval. They are part of the application.
-
-## Running Tests
-
-- Run the narrowest set of tests that covers the change. Pass a file path or `--filter=testName` to `php artisan test --compact`.
-- Rerun a test after each change to it.
-- Run `vendor/bin/pest` to call the test runner directly. It accepts the same file path and `--filter=testName` arguments.
-- After the feature tests pass, ask the user to run the complete suite with `php artisan test --compact`.
-
-</laravel-boost-guidelines>
+When the user asks you to build a new skill or feature for Verita:
+1. Check existing skills in `.agents/skills/` (e.g. `verita-ecosystem`, `verita-skill-builder`).
+2. Follow the skill blueprint in `.agents/skills/verita-skill-builder/SKILL.md`.
+3. Preserve all core styling (`.card-creamy`), terminology rules (no "Dossier"), and lead author credits.

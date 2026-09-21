@@ -25,6 +25,13 @@ class MessageService
                 'sent_at' => now(),
             ]);
 
+            if ($senderType === SenderType::DEPARTMENT_HEAD && $case->assignedTo) {
+                if ($case->assignedTo->presence_status !== \App\Enums\PresenceStatus::ONLINE) {
+                    $case->assignedTo->presence_status = \App\Enums\PresenceStatus::ONLINE;
+                    $case->assignedTo->save();
+                }
+            }
+
             // Case Reporter has no AuditActorType value in the master spec's enum —
             // same gap Phase 7 hit with EVIDENCE_ADDED, same resolution: SYSTEM.
             $this->auditLog->log(

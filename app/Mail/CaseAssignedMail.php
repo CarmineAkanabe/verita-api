@@ -4,20 +4,27 @@ namespace App\Mail;
 
 use App\Models\CaseRecord;
 use Illuminate\Bus\Queueable;
-// use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
-// use Illuminate\Mail\Mailables\Attachment;
-// use Illuminate\Mail\Mailables\Content;
-// use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
+use Symfony\Component\Mime\Email;
 
 class CaseAssignedMail extends Mailable
 {
     use Queueable, SerializesModels;
+
     public function __construct(public CaseRecord $case) {}
+
     public function build(): self
     {
-        return $this->subject("Case #{$this->case->id} assigned to you")
-            ->markdown('mail.case-assigned');
+        $shortId = strtoupper(substr($this->case->id, 0, 8));
+        $category = $this->case->category?->value ?? $this->case->category ?? 'Investigation';
+
+        return $this->subject("[Verita] Case Assigned: #{$shortId} ({$category}) — Action Required")
+            ->markdown('email.case-assigned')
+            ->withSymfonyMessage(function (Email $message): void {
+                $message->embedFromPath(public_path('images/verita-logo.png'), 'verita-logo.png', 'image/png');
+                $message->getHeaders()->addTextHeader('X-Entity-Ref-ID', $this->case->id);
+                $message->getHeaders()->addTextHeader('X-Auto-Response-Suppress', 'OOF, AutoReply');
+            });
     }
 }

@@ -56,6 +56,7 @@ Route::prefix('v1')->group(function () {
 
         // View In-App Notifications — any staff member, own records only
         Route::get('notifications', [NotificationController::class, 'index']);
+        Route::get('audit-logs', [CaseManagementController::class, 'allAuditLogs']);
         Route::patch('notifications/{notification}', [NotificationController::class, 'markAsRead']);
     });
 
@@ -88,7 +89,6 @@ Route::prefix('v1')->group(function () {
     |--------------------------------------------------------------------
     */
     Route::middleware(['auth:api', 'role:DEPARTMENT_HEAD'])->prefix('cases')->group(function () {
-        Route::get('/', [CaseManagementController::class, 'index']);
         Route::post('/{case}/claim', [CaseManagementController::class, 'claim']);
         Route::patch('/{case}/status', [CaseManagementController::class, 'updateStatus']);
         Route::post('/{case}/messages', [MessageController::class, 'store']);
@@ -101,8 +101,10 @@ Route::prefix('v1')->group(function () {
     |--------------------------------------------------------------------
     */
     Route::middleware(['auth:api', 'role:DEPARTMENT_HEAD,MANAGER'])->prefix('cases')->group(function () {
+        Route::get('/', [CaseManagementController::class, 'index']);
         Route::get('/{case}', [CaseManagementController::class, 'show']);
         Route::get('/{case}/evidence/{evidence}', [CaseManagementController::class, 'evidence']);
         Route::get('/{case}/messages', [MessageController::class, 'index']);
+        Route::get('/{case}/audit-logs', [CaseManagementController::class, 'auditLogs']);
     });
 });

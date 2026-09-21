@@ -30,6 +30,7 @@ use Tymon\JWTAuth\Contracts\JWTSubject;
     'concerns_department_head',
     'ai_summary',
     'ai_findings',
+    'ai_timeline',
     'ai_processing_failed',
 ])]
 class CaseRecord extends Model implements AuthenticatableContract, JWTSubject
