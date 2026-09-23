@@ -34,7 +34,7 @@ class DatabaseSeeder extends Seeder
         });
 
         User::factory()->manager()->create([
-            'email' => 'manjuserge@gmail.com',
+            'email' => 'manager@verita.com',
         ]);
 
         $swDept = $departments->first();

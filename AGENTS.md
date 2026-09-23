@@ -51,16 +51,16 @@ Whenever you modify, extend, or review code in this project, you **MUST** adhere
 
 ## 3. Local Development Ports & Services
 
-| Service | Address | Command | Notes |
-|---|---|---|---|
-| **Vue 3 Frontend** | `http://localhost:5173` | `npm run dev` | Running Vite dev server |
-| **Laravel API** | `http://localhost:8000` | `php artisan serve --port=8000` | Base API: `http://localhost:8000/api/v1` |
-| **Reverb WebSockets** | `localhost:8080` | `php artisan reverb:start --port=8080` | Pusher protocol over WS |
-| **Queue Worker** | Background daemon | `php artisan queue:work` | Background AI & mail jobs |
+| Service               | Address                 | Command                                | Notes                                    |
+| --------------------- | ----------------------- | -------------------------------------- | ---------------------------------------- |
+| **Vue 3 Frontend**    | `http://localhost:5173` | `npm run dev`                          | Running Vite dev server                  |
+| **Laravel API**       | `http://localhost:8000` | `php artisan serve --port=8000`        | Base API: `http://localhost:8000/api/v1` |
+| **Reverb WebSockets** | `localhost:8080`        | `php artisan reverb:start --port=8080` | Pusher protocol over WS                  |
+| **Queue Worker**      | Background daemon       | `php artisan queue:work`               | Background AI & mail jobs                |
 
 ### Testing Accounts:
-- **Manager**: `manjuserge@gmail.com` / `password`
-- **Department Head**: `xinbaimi230@gmail.com` / `password`
+- **Manager**: `manager@verita.com` / `password`
+- **Department Head**: `depthead@verita.com` / `password`
 
 ---
 
