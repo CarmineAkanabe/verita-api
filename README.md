@@ -4,7 +4,7 @@
 [![PHP](https://img.shields.io/badge/PHP-8.3%2B-777BB4?logo=php&logoColor=white)](https://www.php.net)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-Backend API for **Verita**, an enterprise-grade anonymous workplace-reporting, ethics consultation, and case-management platform. It provides cryptographic anonymity for whistleblowers, role-partitioned JWT access for investigators, asynchronous AI triage via Gemini, real-time WebSocket messaging via Laravel Reverb, and ISO 37002-compliant immutable audit logging.
+Backend API for **Verita**, an enterprise-grade anonymous workplace-reporting, ethics consultation, and case-management platform. It provides cryptographic anonymity for Case Reporters, role-partitioned JWT access for investigators, asynchronous AI triage via Gemini, real-time WebSocket messaging via Laravel Reverb, and ISO 37002-compliant immutable audit logging.
 
 **Lead Developer & Architect:** [Carmine Akanabe](https://github.com/CarmineAkanabe)  
 **Repository:** [https://github.com/CarmineAkanabe/verita-api](https://github.com/CarmineAkanabe/verita-api)
@@ -13,7 +13,7 @@ Backend API for **Verita**, an enterprise-grade anonymous workplace-reporting, e
 
 ## Key Features
 
-- **Anonymous Case Intake**: Whistleblowers file incident reports with zero personal metadata retention. A cryptographic one-time tracking PIN is generated for secure follow-up.
+- **Anonymous Case Intake**: Case Reporters file incident reports with zero personal metadata retention. A cryptographic one-time tracking PIN is generated for secure follow-up.
 - **Role-Partitioned Access**: Air-gapped JWT guards separating anonymous reporters from staff (`DEPARTMENT_HEAD`, `MANAGER`).
 - **AI Case Analysis (Gemini 2.5 Flash)**: Background worker automatically structures narratives, generates executive summaries, extracts key contradictions, and synthesizes event timelines.
 - **Real-Time Communication (Laravel Reverb)**: Asymmetric private WebSocket channels allowing secure, two-way dialogue between anonymous reporters and assigned Department Heads.
@@ -25,10 +25,10 @@ Backend API for **Verita**, an enterprise-grade anonymous workplace-reporting, e
 
 ## Documentation
 
-| Document | Description |
-| --- | --- |
+| Document                                                                          | Description                                                                                                                                        |
+| --------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [API-DOCUMENTATION.md](API-DOCUMENTATION.md) / [API-DOCUMENT.md](API-DOCUMENT.md) | Comprehensive consumer contract for Vue 3 and Bruno: all endpoints, request/response schemas, auth guards, WebSocket events, and error structures. |
-| [PROGRESS.md](PROGRESS.md) | Chronological development log, architectural decisions, and modification audits. |
+| [PROGRESS.md](PROGRESS.md)                                                        | Chronological development log, architectural decisions, and modification audits.                                                                   |
 
 ---
 
@@ -135,7 +135,7 @@ php artisan reverb:start --port=8080
 
 1. **Air-Gapped Privacy**: Anonymous reports have no foreign keys to user accounts or tracking IP records.
 2. **Atomic Status Transitions**: Case claiming and status updates execute in strict database transactions.
-3. **ISO 37002 Alignment**: Four-stage whistleblowing lifecycle (Receiving, Assessing, Addressing, Concluding).
+3. **ISO 37002 Alignment**: Four-stage Case Reporting lifecycle (Receiving, Assessing, Addressing, Concluding).
 4. **Deliverability Protection**: Transactional emails carry anti-spam headers (`X-Entity-Ref-ID`, `X-Auto-Response-Suppress`) and high-density text formats to guarantee inbox delivery.
 
 ---

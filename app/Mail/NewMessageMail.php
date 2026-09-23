@@ -18,7 +18,7 @@ class NewMessageMail extends Mailable
     {
         $shortId = strtoupper(substr($this->message->case_record_id, 0, 8));
 
-        return $this->subject("[Verita] New Whistleblower Message on Case #{$shortId}")
+        return $this->subject("[Verita] New Case Reporter Message on Case #{$shortId}")
             ->markdown('email.new-message')
             ->withSymfonyMessage(function (Email $message): void {
                 $message->embedFromPath(public_path('images/verita-logo.png'), 'verita-logo.png', 'image/png');
